@@ -92,6 +92,15 @@ namespace InputFrequency
             }
             catch
             {
+                try
+                {
+                    string newName;
+                    int counter = 1;
+                    while (File.Exists(newName = getFullFileName("Data.Old.{0}.csv".Fmt(counter))))
+                        counter++;
+                    File.Move(getFullFileName("Data.csv"), newName);
+                }
+                catch { }
                 return new Statistics();
             }
         }
@@ -111,7 +120,7 @@ namespace InputFrequency
                             file.WriteLine(line);
                         file.WriteLine();
                         file.WriteLine("=== KEY DOWN DURATION ===");
-                        foreach (var line in DownFor.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:0,0} seconds".Fmt(kvp.Key, kvp.Value)))
+                        foreach (var line in DownFor.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:#,0} seconds".Fmt(kvp.Key, kvp.Value)))
                             file.WriteLine(line);
                         file.WriteLine();
                         file.WriteLine("=== COMBO USAGE ===");
