@@ -38,8 +38,8 @@ namespace InputFrequency
         static void StatsSaverThread()
         {
             // Don't generate the report straight away, to make it less expensive to start at boot time
-            Thread.Sleep(TimeSpan.FromMinutes(5));
-            _stats.CountMinutes(5);
+            Thread.Sleep(TimeSpan.FromMinutes(1));
+            _stats.CountMinutes(1);
             while (true)
             {
                 // Generate the report once an hour

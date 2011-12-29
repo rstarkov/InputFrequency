@@ -147,7 +147,10 @@ namespace InputFrequency
                             file.WriteLine(line);
                         file.WriteLine();
                         file.WriteLine("=== CHORD USAGE ===");
-                        foreach (var line in ChordCounts.OrderByDescending(kvp => kvp.Value).Take(100).Select(kvp => "  {0,45} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
+                        file.WriteLine("Repetitions of the same key are filtered out. Only showing top 100 chords.");
+                        foreach (var line in ChordCounts.OrderByDescending(kvp => kvp.Value)
+                            .Where(kvp => kvp.Key.Combos.Length == 2 && kvp.Key.Combos[0] != kvp.Key.Combos[1]).Take(100)
+                            .Select(kvp => "  {0,45} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
                             file.WriteLine(line);
                     }
                 }
