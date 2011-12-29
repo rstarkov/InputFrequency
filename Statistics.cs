@@ -16,6 +16,7 @@ namespace InputFrequency
 
         private object _lock = new object();
         private KeyCombo _previousCombo = null;
+        private DateTime _previousComboAt = DateTime.MinValue;
 
         public void CountMinutes(int minutes)
         {
@@ -38,9 +39,10 @@ namespace InputFrequency
             lock (_lock)
             {
                 ComboCounts.IncSafe(combo);
-                if (_previousCombo != null)
+                if (_previousCombo != null && DateTime.UtcNow - _previousComboAt < TimeSpan.FromSeconds(3))
                     ChordCounts.IncSafe(new KeyChord(_previousCombo, combo));
                 _previousCombo = combo;
+                _previousComboAt = DateTime.UtcNow;
             }
         }
 
@@ -131,19 +133,21 @@ namespace InputFrequency
                         file.WriteLine("Keyboard used for " + TimeSpan.FromSeconds(KeyboardUseSeconds).ToString("d' days 'h' hours 'm' minutes'"));
                         file.WriteLine();
                         file.WriteLine("=== KEY USAGE ===");
-                        foreach (var line in KeyCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:0,0}".Fmt(kvp.Key, kvp.Value)))
+                        file.WriteLine("Total key presses: {0:#,0}".Fmt(KeyCounts.Sum(kvp => kvp.Value)));
+                        foreach (var line in KeyCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
                             file.WriteLine(line);
                         file.WriteLine();
                         file.WriteLine("=== KEY DOWN DURATION ===");
+                        file.WriteLine("Total key-down-time: {0} (note: two keys held for 1 second in parallel add up to 2 seconds key-down-time)".Fmt(DownFor.Sum(kvp => kvp.Value)));
                         foreach (var line in DownFor.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:#,0} seconds".Fmt(kvp.Key, kvp.Value)))
                             file.WriteLine(line);
                         file.WriteLine();
                         file.WriteLine("=== COMBO USAGE ===");
-                        foreach (var line in ComboCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,30} {1,7:0,0}".Fmt(kvp.Key, kvp.Value)))
+                        foreach (var line in ComboCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,30} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
                             file.WriteLine(line);
                         file.WriteLine();
                         file.WriteLine("=== CHORD USAGE ===");
-                        foreach (var line in ChordCounts.OrderByDescending(kvp => kvp.Value).Take(100).Select(kvp => "  {0,45} {1,7:0,0}".Fmt(kvp.Key, kvp.Value)))
+                        foreach (var line in ChordCounts.OrderByDescending(kvp => kvp.Value).Take(100).Select(kvp => "  {0,45} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
                             file.WriteLine(line);
                     }
                 }
