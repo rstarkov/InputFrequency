@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Windows.Forms;
 
+// shift+numpad produce an unwanted shift (perhaps it's possible to track them as Shift+NumPadX?)
 // stats on mouse drags and double-clicks
 // timing stats between keypresses - distinguish letters
 // all stats by application - e.g. Visual Studio very keyboardy but Photoshop much less so
@@ -27,15 +28,28 @@ namespace InputFrequency
         /// </summary>
         static void Main()
         {
-            _stats = Statistics.Load();
+            try
+            {
+                _stats = Statistics.Load();
 
-            var user32 = WinAPI.LoadLibrary("User32");
-            _keyboardHook = WinAPI.SetWindowsHookEx(WinAPI.WH_KEYBOARD_LL, new WinAPI.KeyboardHookProc(KeyboardHookProc), user32, 0);
-            _mouseHook = WinAPI.SetWindowsHookEx(WinAPI.WH_MOUSE_LL, new WinAPI.MouseHookProc(MouseHookProc), user32, 0);
+                var user32 = WinAPI.LoadLibrary("User32");
+                var keyboardCallback = new WinAPI.KeyboardHookProc(KeyboardHookProc);
+                var mouseCallback = new WinAPI.MouseHookProc(MouseHookProc);
+                _keyboardHook = WinAPI.SetWindowsHookEx(WinAPI.WH_KEYBOARD_LL, keyboardCallback, user32, 0);
+                _mouseHook = WinAPI.SetWindowsHookEx(WinAPI.WH_MOUSE_LL, mouseCallback, user32, 0);
 
-            new Thread(new ThreadStart(StatsSaverThread)) { IsBackground = true }.Start();
+                new Thread(new ThreadStart(StatsSaverThread)) { IsBackground = true }.Start();
 
-            Application.Run();
+                Application.Run();
+
+                GC.KeepAlive(keyboardCallback);
+                GC.KeepAlive(mouseCallback);
+            }
+            catch (Exception e)
+            {
+                Statistics.SaveCrashReport("Main", e);
+                throw;
+            }
         }
 
         /// <summary>
@@ -124,13 +138,13 @@ namespace InputFrequency
                     else if (wParam == WinAPI.WM_RBUTTONUP)
                         ProcessKeyMouseUp(Key.MouseRight);
                     else if (wParam == WinAPI.WM_XBUTTONDOWN && (lParam.mouseData >> 16) == 1)
-                        ProcessKeyMouseDown(Key.MouseExtra1);
+                        ProcessKeyMouseDown(Key.MouseBack);
                     else if (wParam == WinAPI.WM_XBUTTONUP && (lParam.mouseData >> 16) == 1)
-                        ProcessKeyMouseUp(Key.MouseExtra1);
+                        ProcessKeyMouseUp(Key.MouseBack);
                     else if (wParam == WinAPI.WM_XBUTTONDOWN && (lParam.mouseData >> 16) == 2)
-                        ProcessKeyMouseDown(Key.MouseExtra2);
+                        ProcessKeyMouseDown(Key.MouseForward);
                     else if (wParam == WinAPI.WM_XBUTTONUP && (lParam.mouseData >> 16) == 2)
-                        ProcessKeyMouseUp(Key.MouseExtra2);
+                        ProcessKeyMouseUp(Key.MouseForward);
                     else
                         Statistics.SaveDebugLine("Unprocessed mouse: wParam = {0}, mouseData = {1}, flags = {2}, extraInfo = {3}".Fmt(wParam, lParam.mouseData, lParam.flags, lParam.dwExtraInfo));
                 }
@@ -221,7 +235,7 @@ namespace InputFrequency
         private static void ProcessMouseWheel(bool vertical, int amount)
         {
             ProcessMouseUse();
-            var wheelKey = vertical ? (amount < 0 ? Key.MouseWheelDown : Key.MouseWheelUp) : (amount < 0 ? Key.MouseWheelRight : Key.MouseWheelLeft);
+            var wheelKey = vertical ? (amount < 0 ? Key.MouseWheelDown : Key.MouseWheelUp) : (amount < 0 ? Key.MouseWheelLeft : Key.MouseWheelRight);
             _stats.CountKey(wheelKey, TimeSpan.Zero);
             _lastPressedModifier = null;
             ProcessKeyCombo(new KeyCombo(wheelKey, _keyDown));

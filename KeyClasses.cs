@@ -61,8 +61,8 @@ namespace InputFrequency
                 case Key.MouseLeft:
                 case Key.MouseMiddle:
                 case Key.MouseRight:
-                case Key.MouseExtra1:
-                case Key.MouseExtra2:
+                case Key.MouseBack:
+                case Key.MouseForward:
                     return true;
                 default:
                     return false;
@@ -190,14 +190,14 @@ namespace InputFrequency
     {
         MouseLeft = 1,
         MouseRight = 2,
-        Cancel = 3,
+        Break = 3,
         MouseMiddle = 4,
-        MouseExtra1 = 5,
-        MouseExtra2 = 6,
+        MouseBack = 5,
+        MouseForward = 6,
         Backspace = 8,
         Tab = 9,
         LineFeed = 10,
-        Clear = 12,
+        Clear = 12, // Produced by NumPad5 without NumLock
         Enter = 13,
         Shift = 16,
         Ctrl = 17,
@@ -334,7 +334,7 @@ namespace InputFrequency
         LaunchMail = 180,
         LaunchMedia = 181,
         LaunchApplication1 = 182,
-        LaunchApplication2 = 183,
+        LaunchCalculator = 183,
         OemSemicolon = 186,
         OemPlus = 187,
         OemComma = 188,
