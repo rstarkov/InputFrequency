@@ -8,6 +8,7 @@ namespace InputFrequency
     sealed class Statistics
     {
         private int RuntimeMinutes = 0;
+        private double KeyboardUseSeconds = 0;
         private Dictionary<Key, int> KeyCounts = new Dictionary<Key, int>();
         private Dictionary<KeyCombo, int> ComboCounts = new Dictionary<KeyCombo, int>();
         private Dictionary<KeyChord, int> ChordCounts = new Dictionary<KeyChord, int>();
@@ -43,6 +44,13 @@ namespace InputFrequency
             }
         }
 
+        public void CountKeyboardUse(TimeSpan time)
+        {
+            lock (_lock)
+                KeyboardUseSeconds += time.TotalSeconds;
+            System.Diagnostics.Debug.Print("Keyboard use: " + KeyboardUseSeconds);
+        }
+
         private static string getFullFileName(string file)
         {
             var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "InputFrequency");
@@ -56,6 +64,7 @@ namespace InputFrequency
                 using (var file = new StreamWriter(File.Open(getFullFileName("Data.csv"), FileMode.Create, FileAccess.Write, FileShare.Read)))
                 {
                     file.WriteLine("RuntimeMinutes," + RuntimeMinutes);
+                    file.WriteLine("KeyboardUseSeconds," + KeyboardUseSeconds);
                     foreach (var kvp in KeyCounts)
                         file.WriteLine("KeyCounts," + kvp.Value + "," + (int) kvp.Key);
                     foreach (var kvp in ComboCounts)
@@ -79,6 +88,8 @@ namespace InputFrequency
                         continue;
                     if (cols[0] == "RuntimeMinutes")
                         result.RuntimeMinutes = int.Parse(cols[1]);
+                    else if (cols[0] == "KeyboardUseSeconds")
+                        result.KeyboardUseSeconds = double.Parse(cols[1]);
                     else if (cols[0] == "KeyCounts")
                         result.KeyCounts.Add((Key) int.Parse(cols[2]), int.Parse(cols[1]));
                     else if (cols[0] == "ComboCounts")
@@ -115,6 +126,10 @@ namespace InputFrequency
                 {
                     using (var file = new StreamWriter(File.Open(getFullFileName("InputFrequency Report.txt"), FileMode.Create, FileAccess.Write, FileShare.Read)))
                     {
+                        file.WriteLine("=== GENERAL ===");
+                        file.WriteLine("Stats monitored for " + TimeSpan.FromMinutes(RuntimeMinutes).ToString("d' days 'h' hours 'm' minutes'"));
+                        file.WriteLine("Keyboard used for " + TimeSpan.FromSeconds(KeyboardUseSeconds).ToString("d' days 'h' hours 'm' minutes'"));
+                        file.WriteLine();
                         file.WriteLine("=== KEY USAGE ===");
                         foreach (var line in KeyCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:0,0}".Fmt(kvp.Key, kvp.Value)))
                             file.WriteLine(line);

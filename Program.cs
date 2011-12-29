@@ -3,9 +3,9 @@ using System.Diagnostics;
 using System.Threading;
 using System.Windows.Forms;
 
-// time spent using keyboard
 // mouse
 // time spent using mouse
+// timing stats between keypresses - distinguish letters
 
 namespace InputFrequency
 {
@@ -17,6 +17,7 @@ namespace InputFrequency
         static bool[] _keyDown = new bool[256];
         static DateTime[] _keyDownAt = new DateTime[256];
         static Key? _lastPressedModifier = null;
+        static DateTime _lastKeyboardUseAt = DateTime.MinValue;
 
         /// <summary>
         /// Application entry point.
@@ -73,6 +74,7 @@ namespace InputFrequency
         /// </summary>
         static void ProcessKeyDown(Key key)
         {
+            ProcessKeyboardUse();
             var ikey = (byte) key;
             if (!_keyDown[ikey])
             {
@@ -93,6 +95,7 @@ namespace InputFrequency
         /// </summary>
         static void ProcessKeyUp(Key key)
         {
+            ProcessKeyboardUse();
             if (_lastPressedModifier != null)
             {
                 ProcessKeyCombo(new KeyCombo(_lastPressedModifier.Value, _keyDown));
@@ -113,6 +116,20 @@ namespace InputFrequency
             Debug.Print(combo.ToString());
 #endif
             _stats.CountCombo(combo);
+        }
+
+        private static void ProcessKeyboardUse()
+        {
+            var now = DateTime.UtcNow;
+            if (_lastKeyboardUseAt != DateTime.MinValue)
+            {
+                var timeSinceLastUse = now - _lastKeyboardUseAt;
+                if (timeSinceLastUse <= TimeSpan.FromSeconds(12))
+                    _stats.CountKeyboardUse(timeSinceLastUse);
+                else
+                    _stats.CountKeyboardUse(TimeSpan.FromSeconds(1));
+            }
+            _lastKeyboardUseAt = now;
         }
     }
 
