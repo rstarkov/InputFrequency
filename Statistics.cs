@@ -131,14 +131,15 @@ namespace InputFrequency
                         file.WriteLine("=== GENERAL ===");
                         file.WriteLine("Stats monitored for " + TimeSpan.FromMinutes(RuntimeMinutes).ToString("d' days 'h' hours 'm' minutes'"));
                         file.WriteLine("Keyboard used for " + TimeSpan.FromSeconds(KeyboardUseSeconds).ToString("d' days 'h' hours 'm' minutes'"));
+                        file.WriteLine("Total key presses: {0:#,0}".Fmt(KeyCounts.Sum(kvp => kvp.Value)));
+                        file.WriteLine("Total key-down-time: {0} (note: two keys held for 1 second in parallel add up to 2 seconds key-down-time)".Fmt(
+                            TimeSpan.FromSeconds(DownFor.Sum(kvp => kvp.Value)).ToString("d' days 'h' hours 'm' minutes'")));
                         file.WriteLine();
                         file.WriteLine("=== KEY USAGE ===");
-                        file.WriteLine("Total key presses: {0:#,0}".Fmt(KeyCounts.Sum(kvp => kvp.Value)));
                         foreach (var line in KeyCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
                             file.WriteLine(line);
                         file.WriteLine();
                         file.WriteLine("=== KEY DOWN DURATION ===");
-                        file.WriteLine("Total key-down-time: {0} (note: two keys held for 1 second in parallel add up to 2 seconds key-down-time)".Fmt(DownFor.Sum(kvp => kvp.Value)));
                         foreach (var line in DownFor.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:#,0} seconds".Fmt(kvp.Key, kvp.Value)))
                             file.WriteLine(line);
                         file.WriteLine();
@@ -155,6 +156,24 @@ namespace InputFrequency
                     }
                 }
                 catch { }
+        }
+
+        public static void SaveCrashReport(string where, Exception e)
+        {
+            using (var file = new StreamWriter(File.Open(getFullFileName("crash.txt"), FileMode.Append, FileAccess.Write, FileShare.Read)))
+            {
+                file.WriteLine();
+                file.WriteLine();
+                file.WriteLine();
+                file.WriteLine("Crash at " + DateTime.UtcNow + " in " + where);
+                while (e != null)
+                {
+                    file.WriteLine(e.GetType() + ": " + e.Message);
+                    file.WriteLine(e.StackTrace);
+                    file.WriteLine();
+                    e = e.InnerException;
+                }
+            }
         }
     }
 

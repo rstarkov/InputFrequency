@@ -37,20 +37,28 @@ namespace InputFrequency
         /// </summary>
         static void StatsSaverThread()
         {
-            // Don't generate the report straight away, to make it less expensive to start at boot time
-            Thread.Sleep(TimeSpan.FromMinutes(1));
-            _stats.CountMinutes(1);
-            while (true)
+            try
             {
-                // Generate the report once an hour
-                _stats.GenerateReport();
-                // Save the stats every 5 minutes
-                for (int i = 0; i < 12; i++)
+                // Don't generate the report straight away, to make it less expensive to start at boot time
+                Thread.Sleep(TimeSpan.FromMinutes(1));
+                _stats.CountMinutes(1);
+                while (true)
                 {
-                    _stats.Save();
-                    Thread.Sleep(TimeSpan.FromMinutes(5));
-                    _stats.CountMinutes(5);
+                    // Generate the report once an hour
+                    _stats.GenerateReport();
+                    // Save the stats every 5 minutes
+                    for (int i = 0; i < 12; i++)
+                    {
+                        _stats.Save();
+                        Thread.Sleep(TimeSpan.FromMinutes(5));
+                        _stats.CountMinutes(5);
+                    }
                 }
+            }
+            catch (Exception e)
+            {
+                Statistics.SaveCrashReport("StatsSaverThread", e);
+                throw;
             }
         }
 
@@ -59,14 +67,22 @@ namespace InputFrequency
         /// </summary>
         static int HookProc(int code, int wParam, ref WinAPI.KeyboardHookStruct lParam)
         {
-            if (code >= 0 && lParam.vkCode >= 0 && lParam.vkCode <= 255)
+            try
             {
-                if (wParam == WinAPI.WM_KEYDOWN || wParam == WinAPI.WM_SYSKEYDOWN)
-                    ProcessKeyDown((Key) lParam.vkCode); // lParam.scanCode
-                else if (wParam == WinAPI.WM_KEYUP || wParam == WinAPI.WM_SYSKEYUP)
-                    ProcessKeyUp((Key) lParam.vkCode); // lParam.scanCode
+                if (code >= 0 && lParam.vkCode >= 0 && lParam.vkCode <= 255)
+                {
+                    if (wParam == WinAPI.WM_KEYDOWN || wParam == WinAPI.WM_SYSKEYDOWN)
+                        ProcessKeyDown((Key) lParam.vkCode); // lParam.scanCode
+                    else if (wParam == WinAPI.WM_KEYUP || wParam == WinAPI.WM_SYSKEYUP)
+                        ProcessKeyUp((Key) lParam.vkCode); // lParam.scanCode
+                }
+                return WinAPI.CallNextHookEx(_hook, code, wParam, ref lParam);
             }
-            return WinAPI.CallNextHookEx(_hook, code, wParam, ref lParam);
+            catch (Exception e)
+            {
+                Statistics.SaveCrashReport("HookProc", e);
+                throw;
+            }
         }
 
         /// <summary>
