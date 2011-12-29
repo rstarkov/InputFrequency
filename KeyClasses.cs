@@ -54,6 +54,21 @@ namespace InputFrequency
             }
         }
 
+        public static bool IsMouseButton(Key key)
+        {
+            switch (key)
+            {
+                case Key.MouseLeft:
+                case Key.MouseMiddle:
+                case Key.MouseRight:
+                case Key.MouseExtra1:
+                case Key.MouseExtra2:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         public override int GetHashCode()
         {
             int result = (int) Key;
@@ -171,7 +186,7 @@ namespace InputFrequency
         }
     }
 
-    enum Key : byte
+    enum Key
     {
         MouseLeft = 1,
         MouseRight = 2,
@@ -344,5 +359,10 @@ namespace InputFrequency
         NoName = 252,
         Pa1 = 253,
         OemClear = 254,
+        // Not in the standard Keys enum
+        MouseWheelUp = 256,
+        MouseWheelDown = 257,
+        MouseWheelLeft = 258,
+        MouseWheelRight = 259,
     }
 }

@@ -3,21 +3,24 @@ using System.Diagnostics;
 using System.Threading;
 using System.Windows.Forms;
 
-// mouse
-// time spent using mouse
+// stats on mouse drags and double-clicks
 // timing stats between keypresses - distinguish letters
+// all stats by application - e.g. Visual Studio very keyboardy but Photoshop much less so
 
 namespace InputFrequency
 {
     static class Program
     {
         static Statistics _stats;
-        static IntPtr _hook;
+        static IntPtr _keyboardHook;
+        static IntPtr _mouseHook;
 
         static bool[] _keyDown = new bool[256];
         static DateTime[] _keyDownAt = new DateTime[256];
         static Key? _lastPressedModifier = null;
         static DateTime _lastKeyboardUseAt = DateTime.MinValue;
+        static DateTime _lastMouseUseAt = DateTime.MinValue;
+        static int _lastMouseX = int.MinValue, _lastMouseY = int.MinValue;
 
         /// <summary>
         /// Application entry point.
@@ -25,7 +28,10 @@ namespace InputFrequency
         static void Main()
         {
             _stats = Statistics.Load();
-            _hook = WinAPI.SetWindowsHookEx(WinAPI.WH_KEYBOARD_LL, new WinAPI.KeyboardHookProc(HookProc), WinAPI.LoadLibrary("User32"), 0);
+
+            var user32 = WinAPI.LoadLibrary("User32");
+            _keyboardHook = WinAPI.SetWindowsHookEx(WinAPI.WH_KEYBOARD_LL, new WinAPI.KeyboardHookProc(KeyboardHookProc), user32, 0);
+            _mouseHook = WinAPI.SetWindowsHookEx(WinAPI.WH_MOUSE_LL, new WinAPI.MouseHookProc(MouseHookProc), user32, 0);
 
             new Thread(new ThreadStart(StatsSaverThread)) { IsBackground = true }.Start();
 
@@ -65,32 +71,88 @@ namespace InputFrequency
         /// <summary>
         /// The callback for the keyboard hook.
         /// </summary>
-        static int HookProc(int code, int wParam, ref WinAPI.KeyboardHookStruct lParam)
+        static int KeyboardHookProc(int code, int wParam, ref WinAPI.KeyboardHookStruct lParam)
         {
             try
             {
-                if (code >= 0 && lParam.vkCode >= 0 && lParam.vkCode <= 255)
+                if (code >= 0)
                 {
-                    if (wParam == WinAPI.WM_KEYDOWN || wParam == WinAPI.WM_SYSKEYDOWN)
-                        ProcessKeyDown((Key) lParam.vkCode); // lParam.scanCode
-                    else if (wParam == WinAPI.WM_KEYUP || wParam == WinAPI.WM_SYSKEYUP)
-                        ProcessKeyUp((Key) lParam.vkCode); // lParam.scanCode
+                    if (lParam.vkCode >= 0 && lParam.vkCode <= 255)
+                    {
+                        if (wParam == WinAPI.WM_KEYDOWN || wParam == WinAPI.WM_SYSKEYDOWN)
+                            ProcessKeyMouseDown((Key) lParam.vkCode);
+                        else if (wParam == WinAPI.WM_KEYUP || wParam == WinAPI.WM_SYSKEYUP)
+                            ProcessKeyMouseUp((Key) lParam.vkCode);
+                        else
+                            Statistics.SaveDebugLine("Unprocessed keyboard: wParam = {0}, vkCode = {1}, scanCode = {2}, flags = {3}, extraInfo = {4}".Fmt(wParam, lParam.vkCode, lParam.scanCode, lParam.flags, lParam.dwExtraInfo));
+                    }
+                    else
+                        Statistics.SaveDebugLine("Unprocessed keyboard: wParam = {0}, vkCode = {1}, scanCode = {2}, flags = {3}, extraInfo = {4}".Fmt(wParam, lParam.vkCode, lParam.scanCode, lParam.flags, lParam.dwExtraInfo));
                 }
-                return WinAPI.CallNextHookEx(_hook, code, wParam, ref lParam);
+                return WinAPI.CallNextHookEx(_keyboardHook, code, wParam, ref lParam);
             }
             catch (Exception e)
             {
-                Statistics.SaveCrashReport("HookProc", e);
+                Statistics.SaveCrashReport("KeyboardHookProc", e);
                 throw;
             }
         }
 
         /// <summary>
-        /// Handles the "key down" event, which is also sent for repeat keys.
+        /// The callback for the mouse hook.
         /// </summary>
-        static void ProcessKeyDown(Key key)
+        static int MouseHookProc(int code, int wParam, ref WinAPI.MouseHookStruct lParam)
         {
-            ProcessKeyboardUse();
+            try
+            {
+                if (code >= 0)
+                {
+                    if (wParam == WinAPI.WM_MOUSEMOVE)
+                        ProcessMouseMove(lParam.pt.X, lParam.pt.Y);
+                    else if (wParam == WinAPI.WM_MOUSEWHEEL || wParam == WinAPI.WM_MOUSEHWHEEL)
+                        ProcessMouseWheel(wParam == WinAPI.WM_MOUSEWHEEL, (lParam.mouseData >> 16) / 120);
+                    else if (wParam == WinAPI.WM_LBUTTONDOWN)
+                        ProcessKeyMouseDown(Key.MouseLeft);
+                    else if (wParam == WinAPI.WM_LBUTTONUP)
+                        ProcessKeyMouseUp(Key.MouseLeft);
+                    else if (wParam == WinAPI.WM_MBUTTONDOWN)
+                        ProcessKeyMouseDown(Key.MouseMiddle);
+                    else if (wParam == WinAPI.WM_MBUTTONUP)
+                        ProcessKeyMouseUp(Key.MouseMiddle);
+                    else if (wParam == WinAPI.WM_RBUTTONDOWN)
+                        ProcessKeyMouseDown(Key.MouseRight);
+                    else if (wParam == WinAPI.WM_RBUTTONUP)
+                        ProcessKeyMouseUp(Key.MouseRight);
+                    else if (wParam == WinAPI.WM_XBUTTONDOWN && (lParam.mouseData >> 16) == 1)
+                        ProcessKeyMouseDown(Key.MouseExtra1);
+                    else if (wParam == WinAPI.WM_XBUTTONUP && (lParam.mouseData >> 16) == 1)
+                        ProcessKeyMouseUp(Key.MouseExtra1);
+                    else if (wParam == WinAPI.WM_XBUTTONDOWN && (lParam.mouseData >> 16) == 2)
+                        ProcessKeyMouseDown(Key.MouseExtra2);
+                    else if (wParam == WinAPI.WM_XBUTTONUP && (lParam.mouseData >> 16) == 2)
+                        ProcessKeyMouseUp(Key.MouseExtra2);
+                    else
+                        Statistics.SaveDebugLine("Unprocessed mouse: wParam = {0}, mouseData = {1}, flags = {2}, extraInfo = {3}".Fmt(wParam, lParam.mouseData, lParam.flags, lParam.dwExtraInfo));
+                }
+                return WinAPI.CallNextHookEx(_mouseHook, code, wParam, ref lParam);
+            }
+            catch (Exception e)
+            {
+                Statistics.SaveCrashReport("MouseHookProc", e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Handles the "key down" and "mouse button down" events. This is called for key autorepeats, which must be filtered out.
+        /// </summary>
+        static void ProcessKeyMouseDown(Key key)
+        {
+            if (KeyCombo.IsMouseButton(key))
+                ProcessMouseUse();
+            else
+                ProcessKeyboardUse();
+
             var ikey = (byte) key;
             if (!_keyDown[ikey])
             {
@@ -107,11 +169,15 @@ namespace InputFrequency
         }
 
         /// <summary>
-        /// Handles the "key up" event.
+        /// Handles the "key up" and "mouse button up" events.
         /// </summary>
-        static void ProcessKeyUp(Key key)
+        static void ProcessKeyMouseUp(Key key)
         {
-            ProcessKeyboardUse();
+            if (KeyCombo.IsMouseButton(key))
+                ProcessMouseUse();
+            else
+                ProcessKeyboardUse();
+
             if (_lastPressedModifier != null)
             {
                 ProcessKeyCombo(new KeyCombo(_lastPressedModifier.Value, _keyDown));
@@ -126,14 +192,44 @@ namespace InputFrequency
             }
         }
 
+        /// <summary>
+        /// Handles a "complete" combo like Ctrl+Alt+S.
+        /// </summary>
         static void ProcessKeyCombo(KeyCombo combo)
         {
+            _stats.CountCombo(combo);
 #if DEBUG
             Debug.Print(combo.ToString());
 #endif
-            _stats.CountCombo(combo);
         }
 
+        /// <summary>
+        /// Handles mouse move events. The coordinates are absolute screen coordinates.
+        /// </summary>
+        private static void ProcessMouseMove(int x, int y)
+        {
+            ProcessMouseUse();
+            if (_lastMouseX != int.MinValue && _lastMouseY != int.MinValue)
+                _stats.CountMouseMove(x - _lastMouseX, y - _lastMouseY);
+            _lastMouseX = x;
+            _lastMouseY = y;
+        }
+
+        /// <summary>
+        /// Handles mouse wheel rotation. "amount" is in clicks, rather than the arbitrary 120x units.
+        /// </summary>
+        private static void ProcessMouseWheel(bool vertical, int amount)
+        {
+            ProcessMouseUse();
+            var wheelKey = vertical ? (amount < 0 ? Key.MouseWheelDown : Key.MouseWheelUp) : (amount < 0 ? Key.MouseWheelRight : Key.MouseWheelLeft);
+            _stats.CountKey(wheelKey, TimeSpan.Zero);
+            _lastPressedModifier = null;
+            ProcessKeyCombo(new KeyCombo(wheelKey, _keyDown));
+        }
+
+        /// <summary>
+        /// Handles the occurrence of anything that counts as "using the keyboard".
+        /// </summary>
         private static void ProcessKeyboardUse()
         {
             var now = DateTime.UtcNow;
@@ -146,6 +242,29 @@ namespace InputFrequency
                     _stats.CountKeyboardUse(TimeSpan.FromSeconds(1));
             }
             _lastKeyboardUseAt = now;
+#if DEBUG
+            // Debug.Print("Keyboard used");
+#endif
+        }
+
+        /// <summary>
+        /// Handles the occurrence of anything that counts as "using the mouse".
+        /// </summary>
+        private static void ProcessMouseUse()
+        {
+            var now = DateTime.UtcNow;
+            if (_lastMouseUseAt != DateTime.MinValue)
+            {
+                var timeSinceLastUse = now - _lastMouseUseAt;
+                if (timeSinceLastUse <= TimeSpan.FromSeconds(12))
+                    _stats.CountMouseUse(timeSinceLastUse);
+                else
+                    _stats.CountMouseUse(TimeSpan.FromSeconds(1));
+            }
+            _lastMouseUseAt = now;
+#if DEBUG
+            // Debug.Print("Mouse used");
+#endif
         }
     }
 
@@ -160,5 +279,8 @@ namespace InputFrequency
      * shift alt [ALT] SHIFT   =>   Shift+Alt
      * ctrl alt shift [ALT] SHIFT CTRL =>  Ctrl+Alt+Shift
      * ctrl alt shift [ALT] SHIFT alt [ALT] CTRL =>  Ctrl+Alt+Shift   Ctrl+Alt
+     * 
+     * ctrl alt [lbutton] LBUTTON ALT shift [g] G CTRL SHIFT  => Ctrl+Alt+LButton   Ctrl+Shift+G
+     * ctrl alt [wheel] ALT shift [g] G CTRL SHIFT => Ctrl+Alt+Wheel   Ctrl+Shift+G
      */
 }

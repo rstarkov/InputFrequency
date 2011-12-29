@@ -9,6 +9,9 @@ namespace InputFrequency
     {
         private int RuntimeMinutes = 0;
         private double KeyboardUseSeconds = 0;
+        private double MouseUseSeconds = 0;
+        private int MouseTravelX = 0, MouseTravelY = 0;
+        private double MouseTravel = 0;
         private Dictionary<Key, int> KeyCounts = new Dictionary<Key, int>();
         private Dictionary<KeyCombo, int> ComboCounts = new Dictionary<KeyCombo, int>();
         private Dictionary<KeyChord, int> ChordCounts = new Dictionary<KeyChord, int>();
@@ -20,8 +23,7 @@ namespace InputFrequency
 
         public void CountMinutes(int minutes)
         {
-            lock (_lock)
-                RuntimeMinutes += minutes;
+            RuntimeMinutes += minutes;
         }
 
         public void CountKey(Key key, TimeSpan downFor)
@@ -46,11 +48,21 @@ namespace InputFrequency
             }
         }
 
+        public void CountMouseMove(int deltaX, int deltaY)
+        {
+            MouseTravelX += Math.Abs(deltaX);
+            MouseTravelY += Math.Abs(deltaY);
+            MouseTravel += Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
+        }
+
         public void CountKeyboardUse(TimeSpan time)
         {
-            lock (_lock)
-                KeyboardUseSeconds += time.TotalSeconds;
-            System.Diagnostics.Debug.Print("Keyboard use: " + KeyboardUseSeconds);
+            KeyboardUseSeconds += time.TotalSeconds;
+        }
+
+        public void CountMouseUse(TimeSpan time)
+        {
+            MouseUseSeconds += time.TotalSeconds;
         }
 
         private static string getFullFileName(string file)
@@ -67,6 +79,10 @@ namespace InputFrequency
                 {
                     file.WriteLine("RuntimeMinutes," + RuntimeMinutes);
                     file.WriteLine("KeyboardUseSeconds," + KeyboardUseSeconds);
+                    file.WriteLine("MouseUseSeconds," + MouseUseSeconds);
+                    file.WriteLine("MouseTravelX," + MouseTravelX);
+                    file.WriteLine("MouseTravelY," + MouseTravelY);
+                    file.WriteLine("MouseTravel," + MouseTravel);
                     foreach (var kvp in KeyCounts)
                         file.WriteLine("KeyCounts," + kvp.Value + "," + (int) kvp.Key);
                     foreach (var kvp in ComboCounts)
@@ -92,6 +108,14 @@ namespace InputFrequency
                         result.RuntimeMinutes = int.Parse(cols[1]);
                     else if (cols[0] == "KeyboardUseSeconds")
                         result.KeyboardUseSeconds = double.Parse(cols[1]);
+                    else if (cols[0] == "MouseUseSeconds")
+                        result.MouseUseSeconds = double.Parse(cols[1]);
+                    else if (cols[0] == "MouseTravelX")
+                        result.MouseTravelX = int.Parse(cols[1]);
+                    else if (cols[0] == "MouseTravelY")
+                        result.MouseTravelY = int.Parse(cols[1]);
+                    else if (cols[0] == "MouseTravel")
+                        result.MouseTravel = double.Parse(cols[1]);
                     else if (cols[0] == "KeyCounts")
                         result.KeyCounts.Add((Key) int.Parse(cols[2]), int.Parse(cols[1]));
                     else if (cols[0] == "ComboCounts")
@@ -131,9 +155,15 @@ namespace InputFrequency
                         file.WriteLine("=== GENERAL ===");
                         file.WriteLine("Stats monitored for " + TimeSpan.FromMinutes(RuntimeMinutes).ToString("d' days 'h' hours 'm' minutes'"));
                         file.WriteLine("Keyboard used for " + TimeSpan.FromSeconds(KeyboardUseSeconds).ToString("d' days 'h' hours 'm' minutes'"));
+                        file.WriteLine("Mouse used for " + TimeSpan.FromSeconds(MouseUseSeconds).ToString("d' days 'h' hours 'm' minutes'"));
+                        if (KeyboardUseSeconds > MouseUseSeconds)
+                            file.WriteLine("Keyboard : Mouse ratio = {0:0.00}".Fmt(KeyboardUseSeconds / MouseUseSeconds));
+                        else
+                            file.WriteLine("Mouse : Keyboard ratio = {0:0.00}".Fmt(MouseUseSeconds / KeyboardUseSeconds));
                         file.WriteLine("Total key presses: {0:#,0}".Fmt(KeyCounts.Sum(kvp => kvp.Value)));
                         file.WriteLine("Total key-down-time: {0} (note: two keys held for 1 second in parallel add up to 2 seconds key-down-time)".Fmt(
                             TimeSpan.FromSeconds(DownFor.Sum(kvp => kvp.Value)).ToString("d' days 'h' hours 'm' minutes'")));
+                        file.WriteLine("Total mouse travel: {0:#,0} pixels (X axis: {1:#,0}, Y axis: {2:#,0})".Fmt(MouseTravel, MouseTravelX, MouseTravelY));
                         file.WriteLine();
                         file.WriteLine("=== KEY USAGE ===");
                         foreach (var line in KeyCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
@@ -158,14 +188,20 @@ namespace InputFrequency
                 catch { }
         }
 
+        public static void SaveDebugLine(string line)
+        {
+            using (var file = new StreamWriter(File.Open(getFullFileName("debug.txt"), FileMode.Append, FileAccess.Write, FileShare.Read)))
+                file.WriteLine("[{0}] {1}", DateTime.Now, line);
+        }
+
         public static void SaveCrashReport(string where, Exception e)
         {
-            using (var file = new StreamWriter(File.Open(getFullFileName("crash.txt"), FileMode.Append, FileAccess.Write, FileShare.Read)))
+            using (var file = new StreamWriter(File.Open(getFullFileName("debug.txt"), FileMode.Append, FileAccess.Write, FileShare.Read)))
             {
                 file.WriteLine();
                 file.WriteLine();
                 file.WriteLine();
-                file.WriteLine("Crash at " + DateTime.UtcNow + " in " + where);
+                file.WriteLine("Crash at " + DateTime.Now + " in " + where);
                 while (e != null)
                 {
                     file.WriteLine(e.GetType() + ": " + e.Message);
