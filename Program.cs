@@ -4,7 +4,6 @@ using System.Threading;
 using System.Windows.Forms;
 
 // Track mouse usage by % of screen size
-// Simultaneous key/mouse usage
 // shift+numpad produce an unwanted shift (perhaps it's possible to track them as Shift+NumPadX?)
 // stats on mouse drags and double-clicks
 // timing stats between keypresses - distinguish letters
@@ -16,23 +15,17 @@ namespace InputFrequency
     {
         static Statistics _stats;
 
-        static device _keyboard = new device();
-        static device _mouse = new device();
-
         static bool[] _keyDown = new bool[256];
         static DateTime[] _keyDownAt = new DateTime[256];
         static Key? _lastPressedModifier = null;
+        static DateTime _lastKeyboardUseAt = DateTime.MinValue;
+        static DateTime _lastMouseUseAt = DateTime.MinValue;
         static int _lastMouseX = int.MinValue, _lastMouseY = int.MinValue;
 
         /// <summary>Maximum time allowed between keyboard/mouse use events for the whole interval to count as "use".</summary>
         static readonly TimeSpan _useBetweenTimeout = TimeSpan.FromSeconds(12);
         /// <summary>The amount of time that's counted as keyboard/mouse "use" after the last (or, indeed, the only) use event.</summary>
         static readonly TimeSpan _useAfterTimeout = TimeSpan.FromSeconds(1);
-
-        private class device
-        {
-            public DateTime LastUseAt = DateTime.MinValue;
-        }
 
         /// <summary>
         /// Application entry point.
@@ -174,9 +167,9 @@ namespace InputFrequency
         static void ProcessKeyMouseDown(Key key)
         {
             if (KeyCombo.IsMouseButton(key))
-                ProcessUse(_mouse, _keyboard);
+                ProcessMouseUse();
             else
-                ProcessUse(_keyboard, _mouse);
+                ProcessKeyboardUse();
 
             var ikey = (byte) key;
             if (!_keyDown[ikey])
@@ -199,9 +192,9 @@ namespace InputFrequency
         static void ProcessKeyMouseUp(Key key)
         {
             if (KeyCombo.IsMouseButton(key))
-                ProcessUse(_mouse, _keyboard);
+                ProcessMouseUse();
             else
-                ProcessUse(_keyboard, _mouse);
+                ProcessKeyboardUse();
 
             if (_lastPressedModifier != null)
             {
@@ -233,7 +226,7 @@ namespace InputFrequency
         /// </summary>
         private static void ProcessMouseMove(int x, int y)
         {
-            ProcessUse(_mouse, _keyboard);
+            ProcessMouseUse();
             if (_lastMouseX != int.MinValue && _lastMouseY != int.MinValue)
                 _stats.CountMouseMove(x - _lastMouseX, y - _lastMouseY);
             _lastMouseX = x;
@@ -245,7 +238,7 @@ namespace InputFrequency
         /// </summary>
         private static void ProcessMouseWheel(bool vertical, int amount)
         {
-            ProcessUse(_mouse, _keyboard);
+            ProcessMouseUse();
             var wheelKey = vertical ? (amount < 0 ? Key.MouseWheelDown : Key.MouseWheelUp) : (amount < 0 ? Key.MouseWheelLeft : Key.MouseWheelRight);
             _stats.CountKey(wheelKey, TimeSpan.Zero);
             _lastPressedModifier = null;
@@ -253,20 +246,37 @@ namespace InputFrequency
         }
 
         /// <summary>
-        /// Handles the occurrence of anything that counts as "using the keyboard" or "using the mouse".
+        /// Handles the occurrence of anything that counts as "using the keyboard".
         /// </summary>
-        private static void ProcessUse(device thisD, device otherD)
+        private static void ProcessKeyboardUse()
         {
             var now = DateTime.UtcNow;
-            if (thisD.LastUseAt != DateTime.MinValue)
+            if (_lastKeyboardUseAt != DateTime.MinValue)
             {
-                var timeSinceLastUse = now - thisD.LastUseAt;
+                var timeSinceLastUse = now - _lastKeyboardUseAt;
                 if (timeSinceLastUse <= _useBetweenTimeout)
                     _stats.CountKeyboardUse(timeSinceLastUse);
                 else
                     _stats.CountKeyboardUse(_useAfterTimeout);
             }
-            thisD.LastUseAt = now;
+            _lastKeyboardUseAt = now;
+        }
+
+        /// <summary>
+        /// Handles the occurrence of anything that counts as "using the mouse".
+        /// </summary>
+        private static void ProcessMouseUse()
+        {
+            var now = DateTime.UtcNow;
+            if (_lastMouseUseAt != DateTime.MinValue)
+            {
+                var timeSinceLastUse = now - _lastMouseUseAt;
+                if (timeSinceLastUse <= _useBetweenTimeout)
+                    _stats.CountMouseUse(timeSinceLastUse);
+                else
+                    _stats.CountMouseUse(_useAfterTimeout);
+            }
+            _lastMouseUseAt = now;
         }
     }
 
