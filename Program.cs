@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Windows.Forms;
 
-// Track mouse usage by % of screen size
+// Stats: total key pushes; pressed alone; pressed with modifiers. A modifier table: left/right rows, ctrl,alt,shift,win columns, plus a total for each
 // shift+numpad produce an unwanted shift (perhaps it's possible to track them as Shift+NumPadX?)
 // stats on mouse drags and double-clicks
 // timing stats between keypresses - distinguish letters

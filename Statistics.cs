@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Windows.Forms;
 
 namespace InputFrequency
 {
@@ -12,6 +13,8 @@ namespace InputFrequency
         private double MouseUseSeconds = 0;
         private int MouseTravelX = 0, MouseTravelY = 0;
         private double MouseTravel = 0;
+        private double MouseTravelScreensX = 0, MouseTravelScreensY = 0;
+        private double MouseTravelScreens = 0;
         private Dictionary<Key, int> KeyCounts = new Dictionary<Key, int>();
         private Dictionary<KeyCombo, int> ComboCounts = new Dictionary<KeyCombo, int>();
         private Dictionary<KeyChord, int> ChordCounts = new Dictionary<KeyChord, int>();
@@ -20,6 +23,8 @@ namespace InputFrequency
         private object _lock = new object();
         private KeyCombo _previousCombo = null;
         private DateTime _previousComboAt = DateTime.MinValue;
+        private double _virtualDesktopWidth, _virtualDesktopHeight;
+        private DateTime _virtualDesktopLastRefresh;
 
         public void CountMinutes(int minutes)
         {
@@ -53,6 +58,18 @@ namespace InputFrequency
             MouseTravelX += Math.Abs(deltaX);
             MouseTravelY += Math.Abs(deltaY);
             MouseTravel += Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
+            if (DateTime.UtcNow - _virtualDesktopLastRefresh > TimeSpan.FromMinutes(5))
+            {
+                var size = SystemInformation.VirtualScreen;
+                _virtualDesktopWidth = size.Width;
+                _virtualDesktopHeight = size.Height;
+                _virtualDesktopLastRefresh = DateTime.UtcNow;
+            }
+            double deltaScreensX = deltaX / _virtualDesktopWidth;
+            double deltaScreensY = deltaY / _virtualDesktopHeight;
+            MouseTravelScreensX += Math.Abs(deltaScreensX);
+            MouseTravelScreensY += Math.Abs(deltaScreensY);
+            MouseTravelScreens += Math.Sqrt(deltaScreensX * deltaScreensX + deltaScreensY * deltaScreensY);
         }
 
         public void CountKeyboardUse(TimeSpan time)
@@ -83,6 +100,9 @@ namespace InputFrequency
                     file.WriteLine("MouseTravelX," + MouseTravelX);
                     file.WriteLine("MouseTravelY," + MouseTravelY);
                     file.WriteLine("MouseTravel," + MouseTravel);
+                    file.WriteLine("MouseTravelScreensX," + MouseTravelScreensX);
+                    file.WriteLine("MouseTravelScreensY," + MouseTravelScreensY);
+                    file.WriteLine("MouseTravelScreens," + MouseTravelScreens);
                     foreach (var kvp in KeyCounts)
                         file.WriteLine("KeyCounts," + kvp.Value + "," + (int) kvp.Key);
                     foreach (var kvp in ComboCounts)
@@ -116,6 +136,12 @@ namespace InputFrequency
                         result.MouseTravelY = int.Parse(cols[1]);
                     else if (cols[0] == "MouseTravel")
                         result.MouseTravel = double.Parse(cols[1]);
+                    else if (cols[0] == "MouseTravelScreensX")
+                        result.MouseTravelScreensX = double.Parse(cols[1]);
+                    else if (cols[0] == "MouseTravelScreensY")
+                        result.MouseTravelScreensY = double.Parse(cols[1]);
+                    else if (cols[0] == "MouseTravelScreens")
+                        result.MouseTravelScreens = double.Parse(cols[1]);
                     else if (cols[0] == "KeyCounts")
                         result.KeyCounts.Add((Key) int.Parse(cols[2]), int.Parse(cols[1]));
                     else if (cols[0] == "ComboCounts")
@@ -165,15 +191,24 @@ namespace InputFrequency
                         file.WriteLine("Total key/button-down-time: {0} (note: two keys held for 1 second in parallel add up to 2 seconds key-down-time)".Fmt(
                             TimeSpan.FromSeconds(DownFor.Sum(kvp => kvp.Value)).ToString("d' days 'h' hours 'm' minutes'")));
                         file.WriteLine("Total mouse travel: {0:#,0} pixels (X axis: {1:#,0}, Y axis: {2:#,0})".Fmt(MouseTravel, MouseTravelX, MouseTravelY));
+                        file.WriteLine("Total mouse travel: {0:#,0.0} screens (X axis: {1:#,0.0}, Y axis: {2:#,0.0})".Fmt(MouseTravelScreens, MouseTravelScreensX, MouseTravelScreensY));
                         file.WriteLine();
                         file.WriteLine("=== KEY CLASS USAGE ===");
                         file.WriteLine("Mouse buttons:      " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsMouseButton()).Sum(kvp => kvp.Value)));
                         file.WriteLine("Mouse wheel:       " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsMouseWheel()).Sum(kvp => kvp.Value)));
-                        file.WriteLine("Modifier keys:       " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsModifierKey()).Sum(kvp => kvp.Value)));
-                        file.WriteLine("Navigation (Arrows/Home/End/PgUp/PgDn): " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsNavigationKey()).Sum(kvp => kvp.Value)));
+                        file.WriteLine("Navigation:           " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsNavigationKey()).Sum(kvp => kvp.Value)));
+                        file.WriteLine("    arrow keys:        " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsArrowKey()).Sum(kvp => kvp.Value)));
+                        file.WriteLine("    home/end/pg:   " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsHEPGKey()).Sum(kvp => kvp.Value)));
                         file.WriteLine("Function keys:       " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsFunctionKey()).Sum(kvp => kvp.Value)));
                         file.WriteLine("Numpad keys:        " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsNumpadKey()).Sum(kvp => kvp.Value)));
-                        file.WriteLine("Media/fancy keys:      " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsMediaFancyKey()).Sum(kvp => kvp.Value)));
+                        file.WriteLine("Media/fancy keys:    " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsMediaFancyKey()).Sum(kvp => kvp.Value)));
+                        file.WriteLine("Modifier keys:       " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsModifierKey()).Sum(kvp => kvp.Value)));
+                        file.WriteLine("    Controls:         " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key == Key.LCtrl || kvp.Key == Key.RCtrl || kvp.Key == Key.Ctrl).Sum(kvp => kvp.Value)));
+                        file.WriteLine("    Alts:               " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key == Key.LAlt || kvp.Key == Key.RAlt || kvp.Key == Key.Alt).Sum(kvp => kvp.Value)));
+                        file.WriteLine("    Shifts:             " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key == Key.LShift || kvp.Key == Key.RShift || kvp.Key == Key.Shift).Sum(kvp => kvp.Value)));
+                        file.WriteLine("    Wins:             " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key == Key.LWin || kvp.Key == Key.RWin).Sum(kvp => kvp.Value)));
+                        file.WriteLine("    Left : Right:    {0:0.00}".Fmt(KeyCounts.Where(kvp => kvp.Key == Key.LCtrl || kvp.Key == Key.LAlt || kvp.Key == Key.LShift || kvp.Key == Key.LWin).Sum(kvp => kvp.Value)
+                            / (double) (0.01 + KeyCounts.Where(kvp => kvp.Key == Key.RCtrl || kvp.Key == Key.RAlt || kvp.Key == Key.RShift || kvp.Key == Key.RWin).Sum(kvp => kvp.Value))));
                         file.WriteLine();
                         file.WriteLine("=== KEY USAGE ===");
                         file.WriteLine("A key is used once every time it is pushed down. Auto-repetitions are not counted. Alt+Tab+Tab+Tab counts Alt once.");

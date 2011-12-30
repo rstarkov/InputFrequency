@@ -118,12 +118,27 @@ namespace InputFrequency
 
         public static bool IsNavigationKey(this Key key)
         {
+            return key.IsArrowKey() || key.IsHEPGKey();
+        }
+
+        public static bool IsArrowKey(this Key key)
+        {
             switch (key)
             {
                 case Key.Left:
                 case Key.Right:
                 case Key.Up:
                 case Key.Down:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsHEPGKey(this Key key)
+        {
+            switch (key)
+            {
                 case Key.Home:
                 case Key.End:
                 case Key.PageUp:
