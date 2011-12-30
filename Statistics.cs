@@ -94,67 +94,71 @@ namespace InputFrequency
             lock (_lock)
                 using (var file = new StreamWriter(File.Open(getFullFileName("Data.csv"), FileMode.Create, FileAccess.Write, FileShare.Read)))
                 {
-                    file.WriteLine("RuntimeMinutes," + RuntimeMinutes);
-                    file.WriteLine("KeyboardUseSeconds," + KeyboardUseSeconds);
-                    file.WriteLine("MouseUseSeconds," + MouseUseSeconds);
-                    file.WriteLine("MouseTravelX," + MouseTravelX);
-                    file.WriteLine("MouseTravelY," + MouseTravelY);
-                    file.WriteLine("MouseTravel," + MouseTravel);
-                    file.WriteLine("MouseTravelScreensX," + MouseTravelScreensX);
-                    file.WriteLine("MouseTravelScreensY," + MouseTravelScreensY);
-                    file.WriteLine("MouseTravelScreens," + MouseTravelScreens);
+                    file.WriteLine("RuntimeMinutes," + RuntimeMinutes.ToStringInv());
+                    file.WriteLine("KeyboardUseSeconds," + KeyboardUseSeconds.ToStringInv());
+                    file.WriteLine("MouseUseSeconds," + MouseUseSeconds.ToStringInv());
+                    file.WriteLine("MouseTravelX," + MouseTravelX.ToStringInv());
+                    file.WriteLine("MouseTravelY," + MouseTravelY.ToStringInv());
+                    file.WriteLine("MouseTravel," + MouseTravel.ToStringInv());
+                    file.WriteLine("MouseTravelScreensX," + MouseTravelScreensX.ToStringInv());
+                    file.WriteLine("MouseTravelScreensY," + MouseTravelScreensY.ToStringInv());
+                    file.WriteLine("MouseTravelScreens," + MouseTravelScreens.ToStringInv());
                     foreach (var kvp in KeyCounts)
-                        file.WriteLine("KeyCounts," + kvp.Value + "," + (int) kvp.Key);
+                        file.WriteLine("KeyCounts," + kvp.Value.ToStringInv() + "," + kvp.Key.ToStringInv());
                     foreach (var kvp in ComboCounts)
-                        file.WriteLine("ComboCounts," + kvp.Value + "," + kvp.Key.ToCsv());
+                        file.WriteLine("ComboCounts," + kvp.Value.ToStringInv() + "," + kvp.Key.ToCsv());
                     foreach (var kvp in ChordCounts)
-                        file.WriteLine("ChordCounts," + kvp.Value + "," + kvp.Key.ToCsv());
+                        file.WriteLine("ChordCounts," + kvp.Value.ToStringInv() + "," + kvp.Key.ToCsv());
                     foreach (var kvp in DownFor)
-                        file.WriteLine("DownFor," + kvp.Value + "," + (int) kvp.Key);
+                        file.WriteLine("DownFor," + kvp.Value.ToStringInv() + "," + kvp.Key.ToStringInv());
                 }
         }
 
         public static Statistics Load()
         {
+            string lastLine = "";
             try
             {
                 var result = new Statistics();
                 foreach (var line in File.ReadLines(getFullFileName("Data.csv")))
                 {
+                    lastLine = line;
                     var cols = line.Split(',');
                     if (cols.Length == 0)
                         continue;
                     if (cols[0] == "RuntimeMinutes")
-                        result.RuntimeMinutes = int.Parse(cols[1]);
+                        result.RuntimeMinutes = cols[1].ParseIntInv();
                     else if (cols[0] == "KeyboardUseSeconds")
-                        result.KeyboardUseSeconds = double.Parse(cols[1]);
+                        result.KeyboardUseSeconds = cols[1].ParseDoubleInv();
                     else if (cols[0] == "MouseUseSeconds")
-                        result.MouseUseSeconds = double.Parse(cols[1]);
+                        result.MouseUseSeconds = cols[1].ParseDoubleInv();
                     else if (cols[0] == "MouseTravelX")
-                        result.MouseTravelX = int.Parse(cols[1]);
+                        result.MouseTravelX = cols[1].ParseIntInv();
                     else if (cols[0] == "MouseTravelY")
-                        result.MouseTravelY = int.Parse(cols[1]);
+                        result.MouseTravelY = cols[1].ParseIntInv();
                     else if (cols[0] == "MouseTravel")
-                        result.MouseTravel = double.Parse(cols[1]);
+                        result.MouseTravel = cols[1].ParseDoubleInv();
                     else if (cols[0] == "MouseTravelScreensX")
-                        result.MouseTravelScreensX = double.Parse(cols[1]);
+                        result.MouseTravelScreensX = cols[1].ParseDoubleInv();
                     else if (cols[0] == "MouseTravelScreensY")
-                        result.MouseTravelScreensY = double.Parse(cols[1]);
+                        result.MouseTravelScreensY = cols[1].ParseDoubleInv();
                     else if (cols[0] == "MouseTravelScreens")
-                        result.MouseTravelScreens = double.Parse(cols[1]);
+                        result.MouseTravelScreens = cols[1].ParseDoubleInv();
                     else if (cols[0] == "KeyCounts")
-                        result.KeyCounts.Add((Key) int.Parse(cols[2]), int.Parse(cols[1]));
+                        result.KeyCounts.Add(cols[2].ParseKeyInv(), cols[1].ParseIntInv());
                     else if (cols[0] == "ComboCounts")
-                        result.ComboCounts.Add(KeyCombo.ParseCsv(cols[2]), int.Parse(cols[1]));
+                        result.ComboCounts.Add(KeyCombo.ParseCsv(cols[2]), cols[1].ParseIntInv());
                     else if (cols[0] == "ChordCounts")
-                        result.ChordCounts.Add(KeyChord.ParseCsv(cols.Subarray(2)), int.Parse(cols[1]));
+                        result.ChordCounts.Add(KeyChord.ParseCsv(cols.Subarray(2)), cols[1].ParseIntInv());
                     else if (cols[0] == "DownFor")
-                        result.DownFor.Add((Key) int.Parse(cols[2]), double.Parse(cols[1]));
+                        result.DownFor.Add(cols[2].ParseKeyInv(), cols[1].ParseDoubleInv());
                 }
                 return result;
             }
-            catch
+            catch (Exception e)
             {
+                SaveDebugLine("Statistics.Load crashing line: " + lastLine);
+                SaveCrashReport("Statistics.Load", e);
                 try
                 {
                     string newName;

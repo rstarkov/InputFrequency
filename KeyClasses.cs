@@ -79,14 +79,14 @@ namespace InputFrequency
                 + (LCtrl ? "LCtrl+" : "") + (RCtrl ? "RCtrl+" : "")
                 + (LAlt ? "LAlt+" : "") + (RAlt ? "RAlt+" : "")
                 + (LShift ? "LShift+" : "") + (RShift ? "RShift+" : "")
-                + (int) Key;
+                + Key.ToStringInv();
         }
 
         public static KeyCombo ParseCsv(string value)
         {
             var parts = value.Split('+');
             var result = new KeyCombo();
-            result.Key = (Key) int.Parse(parts[parts.Length - 1]);
+            result.Key = parts[parts.Length - 1].ParseKeyInv();
             for (int i = 0; i < parts.Length - 1; i++)
                 switch (parts[i])
                 {
