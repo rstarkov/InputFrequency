@@ -166,7 +166,7 @@ namespace InputFrequency
         /// </summary>
         static void ProcessKeyMouseDown(Key key)
         {
-            if (KeyCombo.IsMouseButton(key))
+            if (key.IsMouseButton())
                 ProcessMouseUse();
             else
                 ProcessKeyboardUse();
@@ -175,7 +175,7 @@ namespace InputFrequency
             if (!_keyDown[ikey])
             {
                 _keyDownAt[ikey] = DateTime.UtcNow;
-                if (KeyCombo.IsModifier(key))
+                if (key.IsModifierKey())
                     _lastPressedModifier = key;
                 else
                 {
@@ -191,7 +191,7 @@ namespace InputFrequency
         /// </summary>
         static void ProcessKeyMouseUp(Key key)
         {
-            if (KeyCombo.IsMouseButton(key))
+            if (key.IsMouseButton())
                 ProcessMouseUse();
             else
                 ProcessKeyboardUse();

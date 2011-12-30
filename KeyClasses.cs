@@ -33,42 +33,6 @@ namespace InputFrequency
 
         private KeyCombo() { }
 
-        public static bool IsModifier(Key key)
-        {
-            switch (key)
-            {
-                case Key.LWin:
-                case Key.RWin:
-                case Key.LCtrl:
-                case Key.RCtrl:
-                case Key.Ctrl:
-                case Key.LAlt:
-                case Key.RAlt:
-                case Key.Alt:
-                case Key.LShift:
-                case Key.RShift:
-                case Key.Shift:
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        public static bool IsMouseButton(Key key)
-        {
-            switch (key)
-            {
-                case Key.MouseLeft:
-                case Key.MouseMiddle:
-                case Key.MouseRight:
-                case Key.MouseBack:
-                case Key.MouseForward:
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
         public override int GetHashCode()
         {
             int result = (int) Key;

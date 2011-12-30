@@ -60,5 +60,125 @@ namespace InputFrequency
             Array.Copy(array, startIndex, result, 0, length);
             return result;
         }
+
+        public static bool IsModifierKey(this Key key)
+        {
+            switch (key)
+            {
+                case Key.LWin:
+                case Key.RWin:
+                case Key.LCtrl:
+                case Key.RCtrl:
+                case Key.Ctrl:
+                case Key.LAlt:
+                case Key.RAlt:
+                case Key.Alt:
+                case Key.LShift:
+                case Key.RShift:
+                case Key.Shift:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsMouseButton(this Key key)
+        {
+            switch (key)
+            {
+                case Key.MouseLeft:
+                case Key.MouseMiddle:
+                case Key.MouseRight:
+                case Key.MouseBack:
+                case Key.MouseForward:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsMouseWheel(this Key key)
+        {
+            switch (key)
+            {
+                case Key.MouseWheelLeft:
+                case Key.MouseWheelRight:
+                case Key.MouseWheelUp:
+                case Key.MouseWheelDown:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsFunctionKey(this Key key)
+        {
+            return key >= Key.F1 && key <= Key.F24;
+        }
+
+        public static bool IsNavigationKey(this Key key)
+        {
+            switch (key)
+            {
+                case Key.Left:
+                case Key.Right:
+                case Key.Up:
+                case Key.Down:
+                case Key.Home:
+                case Key.End:
+                case Key.PageUp:
+                case Key.PageDown:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsNumpadKey(this Key key)
+        {
+            if (key >= Key.NumPad0 && key <= Key.NumPad9)
+                return true;
+            switch (key)
+            {
+                case Key.NumMultiply:
+                case Key.NumAdd:
+                case Key.NumSeparator:
+                case Key.NumSubtract:
+                case Key.NumDecimal:
+                case Key.NumDivide:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsMediaFancyKey(this Key key)
+        {
+            switch (key)
+            {
+                case Key.BrowserBack:
+                case Key.BrowserForward:
+                case Key.BrowserRefresh:
+                case Key.BrowserStop:
+                case Key.BrowserSearch:
+                case Key.BrowserFavorites:
+                case Key.BrowserHome:
+                case Key.VolumeMute:
+                case Key.VolumeDown:
+                case Key.VolumeUp:
+                case Key.MediaNextTrack:
+                case Key.MediaPreviousTrack:
+                case Key.MediaStop:
+                case Key.MediaPlayPause:
+                case Key.LaunchMail:
+                case Key.LaunchMedia:
+                case Key.LaunchApplication1:
+                case Key.LaunchCalculator:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
     }
 }

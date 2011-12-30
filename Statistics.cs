@@ -160,12 +160,23 @@ namespace InputFrequency
                             file.WriteLine("Keyboard : Mouse ratio = {0:0.00}".Fmt(KeyboardUseSeconds / MouseUseSeconds));
                         else
                             file.WriteLine("Mouse : Keyboard ratio = {0:0.00}".Fmt(MouseUseSeconds / KeyboardUseSeconds));
-                        file.WriteLine("Total key presses: {0:#,0}".Fmt(KeyCounts.Sum(kvp => kvp.Value)));
-                        file.WriteLine("Total key-down-time: {0} (note: two keys held for 1 second in parallel add up to 2 seconds key-down-time)".Fmt(
+                        int totalKeyCount = KeyCounts.Sum(kvp => kvp.Value);
+                        file.WriteLine("Total key/button presses: {0:#,0}".Fmt(totalKeyCount));
+                        file.WriteLine("Total key/button-down-time: {0} (note: two keys held for 1 second in parallel add up to 2 seconds key-down-time)".Fmt(
                             TimeSpan.FromSeconds(DownFor.Sum(kvp => kvp.Value)).ToString("d' days 'h' hours 'm' minutes'")));
                         file.WriteLine("Total mouse travel: {0:#,0} pixels (X axis: {1:#,0}, Y axis: {2:#,0})".Fmt(MouseTravel, MouseTravelX, MouseTravelY));
                         file.WriteLine();
+                        file.WriteLine("=== KEY CLASS USAGE ===");
+                        file.WriteLine("Mouse buttons:      " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsMouseButton()).Sum(kvp => kvp.Value)));
+                        file.WriteLine("Mouse wheel:       " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsMouseWheel()).Sum(kvp => kvp.Value)));
+                        file.WriteLine("Modifier keys:       " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsModifierKey()).Sum(kvp => kvp.Value)));
+                        file.WriteLine("Navigation (Arrows/Home/End/PgUp/PgDn): " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsNavigationKey()).Sum(kvp => kvp.Value)));
+                        file.WriteLine("Function keys:       " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsFunctionKey()).Sum(kvp => kvp.Value)));
+                        file.WriteLine("Numpad keys:        " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsNumpadKey()).Sum(kvp => kvp.Value)));
+                        file.WriteLine("Media/fancy keys:      " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsMediaFancyKey()).Sum(kvp => kvp.Value)));
+                        file.WriteLine();
                         file.WriteLine("=== KEY USAGE ===");
+                        file.WriteLine("A key is used once every time it is pushed down. Auto-repetitions are not counted. Alt+Tab+Tab+Tab counts Alt once.");
                         foreach (var line in KeyCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
                             file.WriteLine(line);
                         file.WriteLine();
@@ -174,11 +185,12 @@ namespace InputFrequency
                             file.WriteLine(line);
                         file.WriteLine();
                         file.WriteLine("=== COMBO USAGE ===");
+                        file.WriteLine("A combo excludes modifier keys except if nothing else is pressed. Ctrl+Shift+K doesn't count Ctrl or Ctrl+Shift, but Ctrl+Shift alone would be counted.");
                         foreach (var line in ComboCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,30} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
                             file.WriteLine(line);
                         file.WriteLine();
                         file.WriteLine("=== CHORD USAGE ===");
-                        file.WriteLine("Repetitions of the same key are filtered out. Only showing top 100 chords.");
+                        file.WriteLine("A chord consists of two consecutive combos pressed within at most 3 seconds. Repetitions of the same combo are filtered out. Only showing top 100 chords.");
                         foreach (var line in ChordCounts.OrderByDescending(kvp => kvp.Value)
                             .Where(kvp => kvp.Key.Combos.Length == 2 && !kvp.Key.Combos[0].Equals(kvp.Key.Combos[1])).Take(100)
                             .Select(kvp => "  {0,45} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
@@ -186,6 +198,11 @@ namespace InputFrequency
                     }
                 }
                 catch { }
+        }
+
+        private string keyAndPercentage(int total, int value)
+        {
+            return "{0:0.00}% ({1:#,0})".Fmt(value / (double) total * 100.0, value);
         }
 
         public static void SaveDebugLine(string line)
