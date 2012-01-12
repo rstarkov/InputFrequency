@@ -75,7 +75,8 @@ namespace InputFrequency
                     {
                         _stats.Save();
                         Thread.Sleep(TimeSpan.FromMinutes(5));
-                        _stats.CountMinutes(5);
+                        if (Recording)
+                            _stats.CountMinutes(5);
                     }
                 }
             }
@@ -93,7 +94,7 @@ namespace InputFrequency
         {
             try
             {
-                if (code >= 0)
+                if (Recording && code >= 0)
                 {
                     if (lParam.vkCode >= 0 && lParam.vkCode <= 255)
                     {
@@ -123,7 +124,7 @@ namespace InputFrequency
         {
             try
             {
-                if (code >= 0)
+                if (Recording && code >= 0)
                 {
                     if (wParam == WinAPI.WM_MOUSEMOVE)
                         ProcessMouseMove(lParam.pt.X, lParam.pt.Y);
@@ -277,6 +278,11 @@ namespace InputFrequency
                     _stats.CountMouseUse(_useAfterTimeout);
             }
             _lastMouseUseAt = now;
+        }
+
+        private static bool Recording
+        {
+            get { return !Control.IsKeyLocked(Keys.Scroll); }
         }
     }
 
