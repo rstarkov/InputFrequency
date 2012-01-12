@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Windows.Forms;
 
-// Stats: total key pushes; pressed alone; pressed with modifiers. A modifier table: left/right rows, ctrl,alt,shift,win columns, plus a total for each
+// Stats: total key pushes; pressed alone; pressed with modifiers.
 // shift+numpad produce an unwanted shift (perhaps it's possible to track them as Shift+NumPadX?)
 // stats on mouse drags and double-clicks
 // timing stats between keypresses - distinguish letters
@@ -30,11 +30,23 @@ namespace InputFrequency
         /// <summary>
         /// Application entry point.
         /// </summary>
-        static void Main()
+        static void Main(string[] args)
         {
             try
             {
                 _stats = Statistics.Load();
+
+                if (args.Length == 1 && args[0] == "report")
+                {
+                    _stats.GenerateReport();
+                    Console.WriteLine("Saved report. Exiting.");
+                    return;
+                }
+                else if (args.Length != 0)
+                {
+                    Console.WriteLine("Unknown command line option. Try \"report\".");
+                    return;
+                }
 
                 var user32 = WinAPI.LoadLibrary("User32");
                 var keyboardCallback = new WinAPI.KeyboardHookProc(KeyboardHookProc);

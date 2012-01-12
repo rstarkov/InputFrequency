@@ -5,10 +5,10 @@ using System.Linq;
 
 namespace InputFrequency
 {
-    static class Extensions
+    static class Ut
     {
         static Dictionary<Key, string> _keyNames;
-        static Extensions()
+        static Ut()
         {
             // Add all the names from the enum
             _keyNames = Enum.GetValues(typeof(Key)).Cast<Key>()
@@ -37,6 +37,23 @@ namespace InputFrequency
         public static string ToStringInv(this double value) { return value.ToString(CultureInfo.InvariantCulture); }
         /// <summary>Converts a Key to string using the invariant culture - so that data can be loaded/saved correctly regardless of OS culture.</summary>
         public static string ToStringInv(this Key value) { return ((int) value).ToString(CultureInfo.InvariantCulture); }
+
+        /// <summary>Allows the use of C#’s powerful type inference when declaring local lambdas whose delegate type doesn't make any difference.</summary>
+        public static Action Lambda(Action method) { return method; }
+        /// <summary>Allows the use of C#’s powerful type inference when declaring local lambdas whose delegate type doesn't make any difference.</summary>
+        public static Action<T> Lambda<T>(Action<T> method) { return method; }
+        /// <summary>Allows the use of C#’s powerful type inference when declaring local lambdas whose delegate type doesn't make any difference.</summary>
+        public static Action<T1, T2> Lambda<T1, T2>(Action<T1, T2> method) { return method; }
+        /// <summary>Allows the use of C#’s powerful type inference when declaring local lambdas whose delegate type doesn't make any difference.</summary>
+        public static Action<T1, T2, T3> Lambda<T1, T2, T3>(Action<T1, T2, T3> method) { return method; }
+        /// <summary>Allows the use of C#’s powerful type inference when declaring local lambdas whose delegate type doesn't make any difference.</summary>
+        public static Func<TResult> Lambda<TResult>(Func<TResult> method) { return method; }
+        /// <summary>Allows the use of C#’s powerful type inference when declaring local lambdas whose delegate type doesn't make any difference.</summary>
+        public static Func<T, TResult> Lambda<T, TResult>(Func<T, TResult> method) { return method; }
+        /// <summary>Allows the use of C#’s powerful type inference when declaring local lambdas whose delegate type doesn't make any difference.</summary>
+        public static Func<T1, T2, TResult> Lambda<T1, T2, TResult>(Func<T1, T2, TResult> method) { return method; }
+        /// <summary>Allows the use of C#’s powerful type inference when declaring local lambdas whose delegate type doesn't make any difference.</summary>
+        public static Func<T1, T2, T3, TResult> Lambda<T1, T2, T3, TResult>(Func<T1, T2, T3, TResult> method) { return method; }
 
         /// <summary>Adds the specified number (or 1) to a dictionary value, even if the key is absent - in which case the value is deemed to be zero.</summary>
         public static void IncSafe<K>(this IDictionary<K, int> dic, K key, int amount = 1)

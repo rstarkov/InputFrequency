@@ -180,12 +180,27 @@ namespace InputFrequency
             lock (_lock)
                 try
                 {
-                    using (var file = new StreamWriter(File.Open(getFullFileName("InputFrequency Report.txt"), FileMode.Create, FileAccess.Write, FileShare.Read)))
+                    using (var file = new StreamWriter(File.Open(getFullFileName("InputFrequency Report.html"), FileMode.Create, FileAccess.Write, FileShare.Read)))
                     {
+                        file.WriteLine("<!DOCTYPE HTML>");
+                        file.WriteLine("<html><head>");
+                        file.WriteLine(@"<style type='text/css'>
+                            table { border-collapse:collapse; }
+                            table, th, td { border: 1px solid #ccc; }
+                            td { text-align: right; }
+                            th, td { padding: 2px 8px; }
+                        ");
+                        file.WriteLine("</style>");
+
+                        file.WriteLine("</head><body>");
+
+                        file.WriteLine("<pre>");
                         file.WriteLine("=== GENERAL ===");
                         file.WriteLine("Stats monitored for " + TimeSpan.FromMinutes(RuntimeMinutes).ToString("d' days 'h' hours 'm' minutes'"));
-                        file.WriteLine("Keyboard used for " + TimeSpan.FromSeconds(KeyboardUseSeconds).ToString("d' days 'h' hours 'm' minutes'"));
-                        file.WriteLine("Mouse used for " + TimeSpan.FromSeconds(MouseUseSeconds).ToString("d' days 'h' hours 'm' minutes'"));
+                        file.WriteLine("Keyboard used for " + TimeSpan.FromSeconds(KeyboardUseSeconds).ToString("d' days 'h' hours 'm' minutes'")
+                                                + "({0:0.0}% of computer ON time)".Fmt(KeyboardUseSeconds / 60.0 / RuntimeMinutes * 100.0));
+                        file.WriteLine("Mouse used for " + TimeSpan.FromSeconds(MouseUseSeconds).ToString("d' days 'h' hours 'm' minutes'")
+                                                + "({0:0.0}% of computer ON time)".Fmt(MouseUseSeconds / 60.0 / RuntimeMinutes * 100.0));
                         if (KeyboardUseSeconds > MouseUseSeconds)
                             file.WriteLine("Keyboard : Mouse ratio = {0:0.00}".Fmt(KeyboardUseSeconds / MouseUseSeconds));
                         else
@@ -207,13 +222,11 @@ namespace InputFrequency
                         file.WriteLine("Numpad keys:        " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsNumpadKey()).Sum(kvp => kvp.Value)));
                         file.WriteLine("Media/fancy keys:    " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsMediaFancyKey()).Sum(kvp => kvp.Value)));
                         file.WriteLine("Modifier keys:       " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsModifierKey()).Sum(kvp => kvp.Value)));
-                        file.WriteLine("    Controls:         " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key == Key.LCtrl || kvp.Key == Key.RCtrl || kvp.Key == Key.Ctrl).Sum(kvp => kvp.Value)));
-                        file.WriteLine("    Alts:               " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key == Key.LAlt || kvp.Key == Key.RAlt || kvp.Key == Key.Alt).Sum(kvp => kvp.Value)));
-                        file.WriteLine("    Shifts:             " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key == Key.LShift || kvp.Key == Key.RShift || kvp.Key == Key.Shift).Sum(kvp => kvp.Value)));
-                        file.WriteLine("    Wins:             " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key == Key.LWin || kvp.Key == Key.RWin).Sum(kvp => kvp.Value)));
-                        file.WriteLine("    Left : Right:    {0:0.00}".Fmt(KeyCounts.Where(kvp => kvp.Key == Key.LCtrl || kvp.Key == Key.LAlt || kvp.Key == Key.LShift || kvp.Key == Key.LWin).Sum(kvp => kvp.Value)
-                            / (double) (0.01 + KeyCounts.Where(kvp => kvp.Key == Key.RCtrl || kvp.Key == Key.RAlt || kvp.Key == Key.RShift || kvp.Key == Key.RWin).Sum(kvp => kvp.Value))));
-                        file.WriteLine();
+                        file.WriteLine("</pre>");
+
+                        reportModifiers(file);
+
+                        file.WriteLine("<pre>");
                         file.WriteLine("=== KEY USAGE ===");
                         file.WriteLine("A key is used once every time it is pushed down. Auto-repetitions are not counted. Alt+Tab+Tab+Tab counts Alt once.");
                         foreach (var line in KeyCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
@@ -234,9 +247,61 @@ namespace InputFrequency
                             .Where(kvp => kvp.Key.Combos.Length == 2 && !kvp.Key.Combos[0].Equals(kvp.Key.Combos[1])).Take(100)
                             .Select(kvp => "  {0,45} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
                             file.WriteLine(line);
+                        file.WriteLine("</pre>");
+
+                        file.WriteLine("</body></html>");
                     }
                 }
                 catch { }
+        }
+
+        private void reportModifiers(StreamWriter file)
+        {
+            file.WriteLine("<h1>Modifier key usage</h1>");
+
+            file.WriteLine("<h2>By combo count</h2>");
+            file.WriteLine("<p class='help'>Shows the total number of key combos that used a modifier key; for example, Alt+Tab+Tab would count Alt twice.</p>");
+            file.WriteLine("<table>");
+            file.WriteLine("<tr><th></th><th>Ctrl</th><th>Alt</th><th>Shift</th><th>Win</th><th>TOTAL</th></tr>");
+            int leftTotal = 0, rightTotal = 0;
+            var modifierRow = Ut.Lambda((string title, bool left, bool right) =>
+            {
+                int ctrl = ComboCounts.Where(kvp => (left && kvp.Key.LCtrl) || (right && kvp.Key.RCtrl)).Sum(kvp => kvp.Value);
+                int alt = ComboCounts.Where(kvp => (left && kvp.Key.LAlt) || (right && kvp.Key.RAlt)).Sum(kvp => kvp.Value);
+                int shift = ComboCounts.Where(kvp => (left && kvp.Key.LShift) || (right && kvp.Key.RShift)).Sum(kvp => kvp.Value);
+                int win = ComboCounts.Where(kvp => (left && kvp.Key.LWin) || (right && kvp.Key.RWin)).Sum(kvp => kvp.Value);
+                file.WriteLine("<tr><th>{0}</th><td>{1:#,0}</td><td>{2:#,0}</td><td>{3:#,0}</td><td>{4:#,0}</td><td>{5:#,0}</td></tr>"
+                    .Fmt(title, ctrl, alt, shift, win, ctrl + alt + shift + win));
+                if (left && !right) leftTotal = ctrl + alt + shift + win;
+                if (!left && right) rightTotal = ctrl + alt + shift + win;
+            });
+            modifierRow("Left", true, false);
+            modifierRow("Right", false, true);
+            modifierRow("TOTAL", true, true);
+            file.WriteLine("</table>");
+            file.WriteLine("<p><b>Left : Right:</b> {0:0.00}</p>".Fmt(leftTotal / (double) (0.01 + rightTotal)));
+
+            file.WriteLine("<h2>By down duration</h2>");
+            file.WriteLine("<p class='help'>Shows the total duration, in seconds, that each modifier key was held down.</p>");
+            file.WriteLine("<table>");
+            file.WriteLine("<tr><th></th><th>Ctrl</th><th>Alt</th><th>Shift</th><th>Win</th><th>TOTAL</th></tr>");
+            double leftTotalDur = 0, rightTotalDur = 0;
+            var modifierRowDur = Ut.Lambda((string title, bool left, bool right) =>
+            {
+                double ctrl = DownFor.Where(kvp => (left && kvp.Key == Key.LCtrl) || (right && kvp.Key == Key.RCtrl)).Sum(kvp => kvp.Value);
+                double alt = DownFor.Where(kvp => (left && kvp.Key == Key.LAlt) || (right && kvp.Key == Key.RAlt)).Sum(kvp => kvp.Value);
+                double shift = DownFor.Where(kvp => (left && kvp.Key == Key.LShift) || (right && kvp.Key == Key.RShift)).Sum(kvp => kvp.Value);
+                double win = DownFor.Where(kvp => (left && kvp.Key == Key.LWin) || (right && kvp.Key == Key.RWin)).Sum(kvp => kvp.Value);
+                file.WriteLine("<tr><th>{0}</th><td>{1:#,0}</td><td>{2:#,0}</td><td>{3:#,0}</td><td>{4:#,0}</td><td>{5:#,0}</td></tr>"
+                    .Fmt(title, ctrl, alt, shift, win, ctrl + alt + shift + win));
+                if (left && !right) leftTotalDur = ctrl + alt + shift + win;
+                if (!left && right) rightTotalDur = ctrl + alt + shift + win;
+            });
+            modifierRowDur("Left", true, false);
+            modifierRowDur("Right", false, true);
+            modifierRowDur("TOTAL", true, true);
+            file.WriteLine("</table>");
+            file.WriteLine("<p><b>Left : Right:</b> {0:0.00}</p>".Fmt(leftTotalDur / (double) (0.01 + rightTotalDur)));
         }
 
         private string keyAndPercentage(int total, int value)
