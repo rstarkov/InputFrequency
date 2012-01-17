@@ -34,19 +34,20 @@ namespace InputFrequency
         {
             try
             {
-                _stats = Statistics.Load();
-
-                if (args.Length == 1 && args[0] == "report")
+                if (args.Length >= 1 && args.Length <= 2 && args[0] == "report")
                 {
-                    _stats.GenerateReport();
-                    Console.WriteLine("Saved report. Exiting.");
+                    _stats = Statistics.Load(args.Length == 2 ? args[1] : null);
+                    _stats.GenerateReport(args.Length == 2 ? (args[1] + ".Report.html") : null);
+                    Statistics.SaveDebugLine("Saved report. Exiting.");
                     return;
                 }
                 else if (args.Length != 0)
                 {
-                    Console.WriteLine("Unknown command line option. Try \"report\".");
+                    Statistics.SaveDebugLine("Unknown command line option. Try \"report\" [<data file name>].");
                     return;
                 }
+
+                _stats = Statistics.Load();
 
                 var user32 = WinAPI.LoadLibrary("User32");
                 var keyboardCallback = new WinAPI.KeyboardHookProc(KeyboardHookProc);
