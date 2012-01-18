@@ -107,6 +107,31 @@ namespace InputFrequency
             }
         }
 
+        public static bool IsCharacterKey(this Key key)
+        {
+            if ((key >= Key.A && key <= Key.Z) || (key >= Key.D0 && key <= Key.D9))
+                return true;
+            switch (key)
+            {
+                case Key.OemBackslash:
+                case Key.OemBacktick:
+                case Key.OemCloseBracket:
+                case Key.OemComma:
+                case Key.OemMinus:
+                case Key.OemOpenBracket:
+                case Key.OemPeriod:
+                case Key.OemPipe:
+                case Key.OemPlus:
+                case Key.OemQuestion:
+                case Key.OemQuotes:
+                case Key.OemSemicolon:
+                case Key.OemTilde:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         public static bool IsMouseButton(this Key key)
         {
             switch (key)

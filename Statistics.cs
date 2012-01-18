@@ -214,41 +214,55 @@ namespace InputFrequency
 
         private void reportGeneralSummary(StreamWriter file)
         {
-            file.WriteLine("<pre>");
-            file.WriteLine("=== GENERAL ===");
-            file.WriteLine("Stats monitored for " + TimeSpan.FromMinutes(RuntimeMinutes).ToString("d' days 'h' hours 'm' minutes'"));
-            file.WriteLine("Keyboard used for " + TimeSpan.FromSeconds(KeyboardUseSeconds).ToString("d' days 'h' hours 'm' minutes'")
-                                    + "({0:0.0}% of computer ON time)".Fmt(KeyboardUseSeconds / 60.0 / RuntimeMinutes * 100.0));
-            file.WriteLine("Mouse used for " + TimeSpan.FromSeconds(MouseUseSeconds).ToString("d' days 'h' hours 'm' minutes'")
-                                    + "({0:0.0}% of computer ON time)".Fmt(MouseUseSeconds / 60.0 / RuntimeMinutes * 100.0));
+            file.WriteLine("<h1>General</h1>");
+            file.WriteLine("<p><b>Stats monitored for:</b> " + TimeSpan.FromMinutes(RuntimeMinutes).ToString("d' days 'h' hours 'm' minutes'"));
+            file.WriteLine("<p><b>Keyboard used for:</b> " + TimeSpan.FromSeconds(KeyboardUseSeconds).ToString("d' days 'h' hours 'm' minutes'")
+                                    + " ({0:0.0}% of computer ON time)".Fmt(KeyboardUseSeconds / 60.0 / RuntimeMinutes * 100.0));
+            file.WriteLine("<br><b>Mouse used for:</b> " + TimeSpan.FromSeconds(MouseUseSeconds).ToString("d' days 'h' hours 'm' minutes'")
+                                    + " ({0:0.0}% of computer ON time)".Fmt(MouseUseSeconds / 60.0 / RuntimeMinutes * 100.0));
             if (KeyboardUseSeconds > MouseUseSeconds)
-                file.WriteLine("Keyboard : Mouse ratio = {0:0.00}".Fmt(KeyboardUseSeconds / MouseUseSeconds));
+                file.WriteLine("<br><b>Keyboard : Mouse ratio:</b> {0:0.00}".Fmt(KeyboardUseSeconds / MouseUseSeconds));
             else
-                file.WriteLine("Mouse : Keyboard ratio = {0:0.00}".Fmt(MouseUseSeconds / KeyboardUseSeconds));
+                file.WriteLine("<br><b>Mouse : Keyboard ratio:</b> {0:0.00}".Fmt(MouseUseSeconds / KeyboardUseSeconds));
             int totalKeyCount = KeyCounts.Sum(kvp => kvp.Value);
-            file.WriteLine("Total key/button presses: {0:#,0}".Fmt(totalKeyCount));
-            file.WriteLine("Total key/button-down-time: {0} (note: two keys held for 1 second in parallel add up to 2 seconds key-down-time)".Fmt(
+            file.WriteLine("<p><b>Total key/button presses:</b> {0:#,0}".Fmt(totalKeyCount));
+            file.WriteLine("<br><b>Total key/button-down-time:</b> {0} (note: two keys held for 1 second in parallel add up to 2 seconds key-down-time)".Fmt(
                 TimeSpan.FromSeconds(DownFor.Sum(kvp => kvp.Value)).ToString("d' days 'h' hours 'm' minutes'")));
-            file.WriteLine("Total mouse travel: {0:#,0} pixels (X axis: {1:#,0}, Y axis: {2:#,0})".Fmt(MouseTravel, MouseTravelX, MouseTravelY));
-            file.WriteLine("Total mouse travel: {0:#,0.0} screens (X axis: {1:#,0.0}, Y axis: {2:#,0.0})".Fmt(MouseTravelScreens, MouseTravelScreensX, MouseTravelScreensY));
-            file.WriteLine("</pre>");
+            file.WriteLine("<p><b>Total mouse travel:</b> {0:#,0} pixels (X axis: {1:#,0}, Y axis: {2:#,0})".Fmt(MouseTravel, MouseTravelX, MouseTravelY));
+            file.WriteLine("<br><b>Total mouse travel:</b> {0:#,0.0} screens (X axis: {1:#,0.0}, Y axis: {2:#,0.0})".Fmt(MouseTravelScreens, MouseTravelScreensX, MouseTravelScreensY));
         }
 
         private void reportKeyClasses(StreamWriter file)
         {
-            int totalKeyCount = KeyCounts.Sum(kvp => kvp.Value);
-            file.WriteLine("<pre>");
-            file.WriteLine("=== KEY CLASS USAGE ===");
-            file.WriteLine("Mouse buttons:      " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsMouseButton()).Sum(kvp => kvp.Value)));
-            file.WriteLine("Mouse wheel:       " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsMouseWheel()).Sum(kvp => kvp.Value)));
-            file.WriteLine("Navigation:           " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsNavigationKey()).Sum(kvp => kvp.Value)));
-            file.WriteLine("    arrow keys:        " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsArrowKey()).Sum(kvp => kvp.Value)));
-            file.WriteLine("    home/end/pg:   " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsHEPGKey()).Sum(kvp => kvp.Value)));
-            file.WriteLine("Function keys:       " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsFunctionKey()).Sum(kvp => kvp.Value)));
-            file.WriteLine("Numpad keys:        " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsNumpadKey()).Sum(kvp => kvp.Value)));
-            file.WriteLine("Media/fancy keys:    " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsMediaFancyKey()).Sum(kvp => kvp.Value)));
-            file.WriteLine("Modifier keys:       " + keyAndPercentage(totalKeyCount, KeyCounts.Where(kvp => kvp.Key.IsModifierKey()).Sum(kvp => kvp.Value)));
-            file.WriteLine("</pre>");
+            file.WriteLine("<h1>Key class usage</h1>");
+            file.WriteLine("<p class='help'>Shows the total number of times each individual key was pushed down, regardless of other keys being pushed.</p>");
+            file.WriteLine("<table>");
+            file.WriteLine("<tr><th></th><th>Down events</th><th>Down duration</th></tr>");
+
+            double totalKeyCount = KeyCounts.Sum(kvp => kvp.Value);
+            double totalDownFor = DownFor.Sum(kvp => kvp.Value);
+
+            var write = Ut.Lambda((string name, Func<Key, bool> filter) =>
+            {
+                int count = KeyCounts.Where(kvp => filter(kvp.Key)).Sum(kvp => kvp.Value);
+                double down = DownFor.Where(kvp => filter(kvp.Key)).Sum(kvp => kvp.Value);
+                file.WriteLine("<tr><th>{0}</th><td title='{1:#,0}'>{2:0.0}%</td><td title='{3:#,0} seconds'>{4:0.0}%</td></tr>".Fmt(name,
+                    count, count / totalKeyCount * 100.0,
+                    down, down / totalDownFor * 100.0));
+            });
+
+            write("Mouse buttons", key => key.IsMouseButton());
+            write("Mouse wheel", key => key.IsMouseWheel());
+            write("Arrow keys", key => key.IsArrowKey());
+            write("Home/End/Page", key => key.IsHEPGKey());
+            write("Function keys", key => key.IsFunctionKey());
+            write("Numpad keys", key => key.IsNumpadKey());
+            write("Media/fancy keys", key => key.IsMediaFancyKey());
+            write("Modifier keys", key => key.IsModifierKey());
+            write("Character keys", key => key.IsCharacterKey());
+            write("Other", key => !key.IsMouseButton() && !key.IsMouseWheel() && !key.IsArrowKey() && !key.IsHEPGKey() && !key.IsFunctionKey()
+                && !key.IsNumpadKey() && !key.IsMediaFancyKey() && !key.IsModifierKey() && !key.IsCharacterKey());
+            file.WriteLine("</table>");
         }
 
         private void reportModifiers(StreamWriter file)
@@ -302,48 +316,47 @@ namespace InputFrequency
 
         private void reportKeyUsage(StreamWriter file)
         {
-            file.WriteLine("<pre>");
-            file.WriteLine("=== KEY USAGE ===");
-            file.WriteLine("A key is used once every time it is pushed down. Auto-repetitions are not counted. Alt+Tab+Tab+Tab counts Alt once.");
-            foreach (var line in KeyCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
+            file.WriteLine("<h1>Key Usage</h1>");
+            file.WriteLine("<p class='help'>A key is used once every time it is pushed down. Auto-repetitions are not counted. Alt+Tab+Tab+Tab counts Alt once.</p>");
+            file.WriteLine("<table>");
+            double total = KeyCounts.Sum(kvp => kvp.Value);
+            foreach (var line in KeyCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "<tr><th>{0}</th><td title='{1:#,0}'>{2:0.0}%</td></tr>".Fmt(kvp.Key, kvp.Value, kvp.Value / total * 100.0)))
                 file.WriteLine(line);
-            file.WriteLine("</pre>");
+            file.WriteLine("</table>");
         }
 
         private void reportKeyDownDuration(StreamWriter file)
         {
-            file.WriteLine("<pre>");
-            file.WriteLine("=== KEY DOWN DURATION ===");
-            foreach (var line in DownFor.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,15} {1,7:#,0} seconds".Fmt(kvp.Key, kvp.Value)))
+            file.WriteLine("<h1>Key Down Duration</h1>");
+            file.WriteLine("<table>");
+            double total = DownFor.Sum(kvp => kvp.Value);
+            foreach (var line in DownFor.OrderByDescending(kvp => kvp.Value).Select(kvp => "<tr><th>{0}</th><td title='{1:#,0} seconds'>{2:0.0}%</td></tr>".Fmt(kvp.Key, kvp.Value, kvp.Value / total * 100.0)))
                 file.WriteLine(line);
-            file.WriteLine("</pre>");
+            file.WriteLine("</table>");
         }
 
         private void reportComboUsage(StreamWriter file)
         {
-            file.WriteLine("<pre>");
-            file.WriteLine("=== COMBO USAGE ===");
-            file.WriteLine("A combo excludes modifier keys except if nothing else is pressed. Ctrl+Shift+K doesn't count Ctrl or Ctrl+Shift, but Ctrl+Shift alone would be counted.");
-            foreach (var line in ComboCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "  {0,30} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
+            file.WriteLine("<h1>Combo Usage</h1>");
+            file.WriteLine("<p class='help'>A combo excludes modifier keys except if nothing else is pressed. Ctrl+Shift+K doesn't count Ctrl or Ctrl+Shift, but Ctrl+Shift alone would be counted.</p>");
+            file.WriteLine("<table>");
+            double total = ComboCounts.Sum(kvp => kvp.Value);
+            foreach (var line in ComboCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "<tr><th>{0}</th><td title='{1:#,0}'>{2:0.0}%</td></tr>".Fmt(kvp.Key, kvp.Value, kvp.Value / total * 100.0)))
                 file.WriteLine(line);
-            file.WriteLine("</pre>");
+            file.WriteLine("</table>");
         }
 
         private void reportChordUsage(StreamWriter file)
         {
-            file.WriteLine("<pre>");
-            file.WriteLine("=== CHORD USAGE ===");
-            file.WriteLine("A chord consists of two consecutive combos pressed within at most 3 seconds. Repetitions of the same combo are filtered out. Only showing top 100 chords.");
+            file.WriteLine("<h1>Chord Usage</h1>");
+            file.WriteLine("<p class='help'>A chord consists of two consecutive combos pressed within at most 3 seconds. Repetitions of the same combo are filtered out. Only showing top 100 chords.</p>");
+            file.WriteLine("<table>");
+            double total = ChordCounts.Sum(kvp => kvp.Value);
             foreach (var line in ChordCounts.OrderByDescending(kvp => kvp.Value)
                 .Where(kvp => kvp.Key.Combos.Length == 2 && !kvp.Key.Combos[0].Equals(kvp.Key.Combos[1])).Take(100)
-                .Select(kvp => "  {0,45} {1,7:#,0}".Fmt(kvp.Key, kvp.Value)))
+                .Select(kvp => "<tr><th>{0}</th><td title='{1:#,0}'>{2:0.0}%</td></tr>".Fmt(kvp.Key, kvp.Value, kvp.Value / total * 100.0)))
                 file.WriteLine(line);
-            file.WriteLine("</pre>");
-        }
-
-        private string keyAndPercentage(int total, int value)
-        {
-            return "{0:0.00}% ({1:#,0})".Fmt(value / (double) total * 100.0, value);
+            file.WriteLine("</table>");
         }
 
         public static void SaveDebugLine(string line)

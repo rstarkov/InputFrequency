@@ -3,7 +3,12 @@ using System.Diagnostics;
 using System.Threading;
 using System.Windows.Forms;
 
-// Stats: total key pushes; pressed alone; pressed with modifiers.
+// Advanced key stats tables:
+//   Total key pushes; pressed alone; pressed with modifiers.
+//   Highlight key types
+//   Checkboxes to include/exclude specific key types
+//   Radio butons to select the number displayed: press count, down duration
+
 // shift+numpad produce an unwanted shift (perhaps it's possible to track them as Shift+NumPadX?)
 // stats on mouse drags and double-clicks
 // timing stats between keypresses - distinguish letters
