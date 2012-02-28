@@ -3,6 +3,11 @@ using System.Diagnostics;
 using System.Threading;
 using System.Windows.Forms;
 
+// Left:Right row in the modifiers table, below "totals"
+// Average duration for each modifier key (separate table?)
+// Make Space and Numbers count as "Characters"; explain "Other keys"
+// 0.0% is better shown as 0.001% if that's the case
+//
 // Advanced key stats tables:
 //   Total key pushes; pressed alone; pressed with modifiers.
 //   Highlight key types

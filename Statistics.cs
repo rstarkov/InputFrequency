@@ -91,27 +91,30 @@ namespace InputFrequency
 
         public void Save()
         {
-            lock (_lock)
-                using (var file = new StreamWriter(File.Open(getFullFileName("Data.csv"), FileMode.Create, FileAccess.Write, FileShare.Read)))
-                {
-                    file.WriteLine("RuntimeMinutes," + RuntimeMinutes.ToStringInv());
-                    file.WriteLine("KeyboardUseSeconds," + KeyboardUseSeconds.ToStringInv());
-                    file.WriteLine("MouseUseSeconds," + MouseUseSeconds.ToStringInv());
-                    file.WriteLine("MouseTravelX," + MouseTravelX.ToStringInv());
-                    file.WriteLine("MouseTravelY," + MouseTravelY.ToStringInv());
-                    file.WriteLine("MouseTravel," + MouseTravel.ToStringInv());
-                    file.WriteLine("MouseTravelScreensX," + MouseTravelScreensX.ToStringInv());
-                    file.WriteLine("MouseTravelScreensY," + MouseTravelScreensY.ToStringInv());
-                    file.WriteLine("MouseTravelScreens," + MouseTravelScreens.ToStringInv());
-                    foreach (var kvp in KeyCounts)
-                        file.WriteLine("KeyCounts," + kvp.Value.ToStringInv() + "," + kvp.Key.ToStringInv());
-                    foreach (var kvp in ComboCounts)
-                        file.WriteLine("ComboCounts," + kvp.Value.ToStringInv() + "," + kvp.Key.ToCsv());
-                    foreach (var kvp in ChordCounts)
-                        file.WriteLine("ChordCounts," + kvp.Value.ToStringInv() + "," + kvp.Key.ToCsv());
-                    foreach (var kvp in DownFor)
-                        file.WriteLine("DownFor," + kvp.Value.ToStringInv() + "," + kvp.Key.ToStringInv());
-                }
+            Ut.WaitSharingVio(() =>
+            {
+                lock (_lock)
+                    using (var file = new StreamWriter(File.Open(getFullFileName("Data.csv"), FileMode.Create, FileAccess.Write, FileShare.Read)))
+                    {
+                        file.WriteLine("RuntimeMinutes," + RuntimeMinutes.ToStringInv());
+                        file.WriteLine("KeyboardUseSeconds," + KeyboardUseSeconds.ToStringInv());
+                        file.WriteLine("MouseUseSeconds," + MouseUseSeconds.ToStringInv());
+                        file.WriteLine("MouseTravelX," + MouseTravelX.ToStringInv());
+                        file.WriteLine("MouseTravelY," + MouseTravelY.ToStringInv());
+                        file.WriteLine("MouseTravel," + MouseTravel.ToStringInv());
+                        file.WriteLine("MouseTravelScreensX," + MouseTravelScreensX.ToStringInv());
+                        file.WriteLine("MouseTravelScreensY," + MouseTravelScreensY.ToStringInv());
+                        file.WriteLine("MouseTravelScreens," + MouseTravelScreens.ToStringInv());
+                        foreach (var kvp in KeyCounts)
+                            file.WriteLine("KeyCounts," + kvp.Value.ToStringInv() + "," + kvp.Key.ToStringInv());
+                        foreach (var kvp in ComboCounts)
+                            file.WriteLine("ComboCounts," + kvp.Value.ToStringInv() + "," + kvp.Key.ToCsv());
+                        foreach (var kvp in ChordCounts)
+                            file.WriteLine("ChordCounts," + kvp.Value.ToStringInv() + "," + kvp.Key.ToCsv());
+                        foreach (var kvp in DownFor)
+                            file.WriteLine("DownFor," + kvp.Value.ToStringInv() + "," + kvp.Key.ToStringInv());
+                    }
+            });
         }
 
         public static Statistics Load(string filename = null)
@@ -124,39 +127,42 @@ namespace InputFrequency
             try
             {
                 var result = new Statistics();
-                foreach (var line in File.ReadLines(fname))
+                Ut.WaitSharingVio(() =>
                 {
-                    lastLine = line;
-                    var cols = line.Split(',');
-                    if (cols.Length == 0)
-                        continue;
-                    if (cols[0] == "RuntimeMinutes")
-                        result.RuntimeMinutes = cols[1].ParseIntInv();
-                    else if (cols[0] == "KeyboardUseSeconds")
-                        result.KeyboardUseSeconds = cols[1].ParseDoubleInv();
-                    else if (cols[0] == "MouseUseSeconds")
-                        result.MouseUseSeconds = cols[1].ParseDoubleInv();
-                    else if (cols[0] == "MouseTravelX")
-                        result.MouseTravelX = cols[1].ParseIntInv();
-                    else if (cols[0] == "MouseTravelY")
-                        result.MouseTravelY = cols[1].ParseIntInv();
-                    else if (cols[0] == "MouseTravel")
-                        result.MouseTravel = cols[1].ParseDoubleInv();
-                    else if (cols[0] == "MouseTravelScreensX")
-                        result.MouseTravelScreensX = cols[1].ParseDoubleInv();
-                    else if (cols[0] == "MouseTravelScreensY")
-                        result.MouseTravelScreensY = cols[1].ParseDoubleInv();
-                    else if (cols[0] == "MouseTravelScreens")
-                        result.MouseTravelScreens = cols[1].ParseDoubleInv();
-                    else if (cols[0] == "KeyCounts")
-                        result.KeyCounts.Add(cols[2].ParseKeyInv(), cols[1].ParseIntInv());
-                    else if (cols[0] == "ComboCounts")
-                        result.ComboCounts.Add(KeyCombo.ParseCsv(cols[2]), cols[1].ParseIntInv());
-                    else if (cols[0] == "ChordCounts")
-                        result.ChordCounts.Add(KeyChord.ParseCsv(cols.Subarray(2)), cols[1].ParseIntInv());
-                    else if (cols[0] == "DownFor")
-                        result.DownFor.Add(cols[2].ParseKeyInv(), cols[1].ParseDoubleInv());
-                }
+                    foreach (var line in File.ReadLines(fname))
+                    {
+                        lastLine = line;
+                        var cols = line.Split(',');
+                        if (cols.Length == 0)
+                            continue;
+                        if (cols[0] == "RuntimeMinutes")
+                            result.RuntimeMinutes = cols[1].ParseIntInv();
+                        else if (cols[0] == "KeyboardUseSeconds")
+                            result.KeyboardUseSeconds = cols[1].ParseDoubleInv();
+                        else if (cols[0] == "MouseUseSeconds")
+                            result.MouseUseSeconds = cols[1].ParseDoubleInv();
+                        else if (cols[0] == "MouseTravelX")
+                            result.MouseTravelX = cols[1].ParseIntInv();
+                        else if (cols[0] == "MouseTravelY")
+                            result.MouseTravelY = cols[1].ParseIntInv();
+                        else if (cols[0] == "MouseTravel")
+                            result.MouseTravel = cols[1].ParseDoubleInv();
+                        else if (cols[0] == "MouseTravelScreensX")
+                            result.MouseTravelScreensX = cols[1].ParseDoubleInv();
+                        else if (cols[0] == "MouseTravelScreensY")
+                            result.MouseTravelScreensY = cols[1].ParseDoubleInv();
+                        else if (cols[0] == "MouseTravelScreens")
+                            result.MouseTravelScreens = cols[1].ParseDoubleInv();
+                        else if (cols[0] == "KeyCounts")
+                            result.KeyCounts.Add(cols[2].ParseKeyInv(), cols[1].ParseIntInv());
+                        else if (cols[0] == "ComboCounts")
+                            result.ComboCounts.Add(KeyCombo.ParseCsv(cols[2]), cols[1].ParseIntInv());
+                        else if (cols[0] == "ChordCounts")
+                            result.ChordCounts.Add(KeyChord.ParseCsv(cols.Subarray(2)), cols[1].ParseIntInv());
+                        else if (cols[0] == "DownFor")
+                            result.DownFor.Add(cols[2].ParseKeyInv(), cols[1].ParseDoubleInv());
+                    }
+                });
                 return result;
             }
             catch (Exception e)
