@@ -19,6 +19,10 @@ namespace InputFrequency
         private Dictionary<KeyCombo, int> ComboCounts = new Dictionary<KeyCombo, int>();
         private Dictionary<KeyChord, int> ChordCounts = new Dictionary<KeyChord, int>();
         private Dictionary<Key, double> DownFor = new Dictionary<Key, double>();
+        private double[] KeyboardMinuteBuckets = new double[24 * 60];
+        private double[] KeyboardWeekBuckets = new double[7];
+        private double[] MouseMinuteBuckets = new double[24 * 60];
+        private double[] MouseWeekBuckets = new double[7];
 
         private object _lock = new object();
         private KeyCombo _previousCombo = null;
@@ -72,14 +76,37 @@ namespace InputFrequency
             MouseTravelScreens += Math.Sqrt(deltaScreensX * deltaScreensX + deltaScreensY * deltaScreensY);
         }
 
-        public void CountKeyboardUse(TimeSpan time)
+        public void CountKeyboardUse(DateTime start, TimeSpan duration)
         {
-            KeyboardUseSeconds += time.TotalSeconds;
+            KeyboardUseSeconds += duration.TotalSeconds;
+            countUseBuckets(start, duration, KeyboardMinuteBuckets, KeyboardWeekBuckets);
         }
 
-        public void CountMouseUse(TimeSpan time)
+        public void CountMouseUse(DateTime start, TimeSpan duration)
         {
-            MouseUseSeconds += time.TotalSeconds;
+            MouseUseSeconds += duration.TotalSeconds;
+            countUseBuckets(start, duration, MouseMinuteBuckets, MouseWeekBuckets);
+        }
+
+        private void countUseBuckets(DateTime start, TimeSpan duration, double[] minuteBuckets, double[] weekBuckets)
+        {
+            start = start.ToLocalTime();
+            var end = start + duration;
+
+            int firstMinute = (int) (start - start.Date).TotalMinutes;
+            int lastMinute = (int) (end - start.Date).TotalMinutes;
+            for (int minute = firstMinute; minute <= lastMinute; minute++)
+            {
+                double seconds = 60;
+                if (minute == firstMinute)
+                    seconds -= start.Second + start.Millisecond / 1000.0;
+                if (minute == lastMinute)
+                    seconds -= 60 - (end.Second + end.Millisecond / 1000.0);
+                minuteBuckets[minute % 1440] += seconds;
+            }
+
+            // Cheat a little for day of week: just count the whole time as used on the day when it started.
+            weekBuckets[(int) start.DayOfWeek] += duration.TotalSeconds;
         }
 
         private static string getFullFileName(string file)
@@ -113,6 +140,14 @@ namespace InputFrequency
                             file.WriteLine("ChordCounts," + kvp.Value.ToStringInv() + "," + kvp.Key.ToCsv());
                         foreach (var kvp in DownFor)
                             file.WriteLine("DownFor," + kvp.Value.ToStringInv() + "," + kvp.Key.ToStringInv());
+                        for (int i = 0; i < 24 * 60; i++)
+                            file.WriteLine("KeyboardMinuteBuckets," + i.ToStringInv() + "," + KeyboardMinuteBuckets[i].ToStringInv());
+                        for (int i = 0; i < 7; i++)
+                            file.WriteLine("KeyboardWeekBuckets," + i.ToStringInv() + "," + KeyboardWeekBuckets[i].ToStringInv());
+                        for (int i = 0; i < 24 * 60; i++)
+                            file.WriteLine("MouseMinuteBuckets," + i.ToStringInv() + "," + MouseMinuteBuckets[i].ToStringInv());
+                        for (int i = 0; i < 7; i++)
+                            file.WriteLine("MouseWeekBuckets," + i.ToStringInv() + "," + MouseWeekBuckets[i].ToStringInv());
                     }
             });
         }
@@ -161,6 +196,14 @@ namespace InputFrequency
                             result.ChordCounts.Add(KeyChord.ParseCsv(cols.Subarray(2)), cols[1].ParseIntInv());
                         else if (cols[0] == "DownFor")
                             result.DownFor.Add(cols[2].ParseKeyInv(), cols[1].ParseDoubleInv());
+                        else if (cols[0] == "KeyboardMinuteBuckets")
+                            result.KeyboardMinuteBuckets[cols[1].ParseIntInv()] = cols[2].ParseDoubleInv();
+                        else if (cols[0] == "KeyboardWeekBuckets")
+                            result.KeyboardWeekBuckets[cols[1].ParseIntInv()] = cols[2].ParseDoubleInv();
+                        else if (cols[0] == "MouseMinuteBuckets")
+                            result.MouseMinuteBuckets[cols[1].ParseIntInv()] = cols[2].ParseDoubleInv();
+                        else if (cols[0] == "MouseWeekBuckets")
+                            result.MouseWeekBuckets[cols[1].ParseIntInv()] = cols[2].ParseDoubleInv();
                     }
                 });
                 return result;

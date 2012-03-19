@@ -279,9 +279,9 @@ namespace InputFrequency
             {
                 var timeSinceLastUse = now - _lastKeyboardUseAt;
                 if (timeSinceLastUse <= _useBetweenTimeout)
-                    _stats.CountKeyboardUse(timeSinceLastUse);
+                    _stats.CountKeyboardUse(_lastKeyboardUseAt, timeSinceLastUse);
                 else
-                    _stats.CountKeyboardUse(_useAfterTimeout);
+                    _stats.CountKeyboardUse(_lastKeyboardUseAt, _useAfterTimeout);
             }
             _lastKeyboardUseAt = now;
         }
@@ -296,9 +296,9 @@ namespace InputFrequency
             {
                 var timeSinceLastUse = now - _lastMouseUseAt;
                 if (timeSinceLastUse <= _useBetweenTimeout)
-                    _stats.CountMouseUse(timeSinceLastUse);
+                    _stats.CountMouseUse(_lastMouseUseAt, timeSinceLastUse);
                 else
-                    _stats.CountMouseUse(_useAfterTimeout);
+                    _stats.CountMouseUse(_lastMouseUseAt, _useAfterTimeout);
             }
             _lastMouseUseAt = now;
         }
