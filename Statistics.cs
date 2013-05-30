@@ -250,6 +250,7 @@ namespace InputFrequency
                         reportGeneralSummary(file);
                         reportKeyClasses(file);
                         reportModifiers(file);
+                        reportByTime(file);
                         reportKeyUsage(file);
                         reportKeyDownDuration(file);
                         reportComboUsage(file);
@@ -286,7 +287,8 @@ namespace InputFrequency
             file.WriteLine("<h1>Key class usage</h1>");
             file.WriteLine("<p class='help'>Shows the total number of times each individual key was pushed down, regardless of other keys being pushed.</p>");
             file.WriteLine("<table>");
-            file.WriteLine("<tr><th></th><th>Down events</th><th>Down duration</th></tr>");
+            file.WriteLine("<tr><th></th><th colspan=2>Total</th><th colspan=2>Average per key in class</th></tr>");
+            file.WriteLine("<tr><th></th><th>Down events</th><th>Down duration</th><th>Down events</th><th>Down duration</th></tr>");
 
             double totalKeyCount = KeyCounts.Sum(kvp => kvp.Value);
             double totalDownFor = DownFor.Sum(kvp => kvp.Value);
@@ -295,9 +297,12 @@ namespace InputFrequency
             {
                 int count = KeyCounts.Where(kvp => filter(kvp.Key)).Sum(kvp => kvp.Value);
                 double down = DownFor.Where(kvp => filter(kvp.Key)).Sum(kvp => kvp.Value);
-                file.WriteLine("<tr><th>{0}</th><td title='{1:#,0}'>{2:0.0}%</td><td title='{3:#,0} seconds'>{4:0.0}%</td></tr>".Fmt(name,
+                double classSize = Enum.GetValues(typeof(Key)).Cast<Key>().Count(key => filter(key));
+                file.WriteLine("<tr><th>{0}</th><td title='{1:#,0}'>{2:0.0}%</td><td title='{3:#,0} seconds'>{4:0.0}%</td> <td>{5:#,0}</td><td>{6:#,0} seconds</td></tr>".Fmt(name,
                     count, count / totalKeyCount * 100.0,
-                    down, down / totalDownFor * 100.0));
+                    down, down / totalDownFor * 100.0,
+                    count / classSize,
+                    down / classSize));
             });
 
             write("Mouse buttons", key => key.IsMouseButton());
@@ -363,6 +368,39 @@ namespace InputFrequency
             file.WriteLine("<p><b>Left : Right:</b> {0:0.00}</p>".Fmt(leftTotalDur / (double) (0.01 + rightTotalDur)));
         }
 
+        private void reportByTime(StreamWriter file)
+        {
+            file.WriteLine("<h1>Time of use</h1>");
+            file.WriteLine("<p>If the keyboard or mouse were touched during a given minute, the bucket for that minute is incremented. These minutes are then grouped into days of week or hours.</p>");
+            file.WriteLine("<h2>By day of week</h2>");
+            file.WriteLine("<p>The percentages shown are relative to one seventh of the total use.</p>");
+            file.WriteLine("<table>");
+            file.WriteLine("<tr><th>Day of week</th><th>Keyboard</th><th>Mouse</th></tr>");
+            double totalKeyboardWeek = KeyboardWeekBuckets.Sum();
+            double totalMouseWeek = MouseWeekBuckets.Sum();
+            foreach (var day in new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday })
+            {
+                file.Write("<tr><td>{0}</td><td title='{1:#,0}'>{2:0}%</td><td title='{3:#,0}'>{4:0}%</td></tr>", day,
+                    KeyboardWeekBuckets[(int) day], KeyboardWeekBuckets[(int) day] / (totalKeyboardWeek / 7) * 100,
+                    MouseWeekBuckets[(int) day], MouseWeekBuckets[(int) day] / (totalMouseWeek / 7) * 100);
+            }
+            file.WriteLine("</table>");
+
+            file.WriteLine("<h2>By time of day</h2>");
+            file.WriteLine("<p>Shows the number of minutes in each hour during which the keyboard / mouse were touched, as a percentage of the busiest hour.</p>");
+            file.WriteLine("<table>");
+            var hours = Enumerable.Range(6, 24).Select(h => h % 24);
+            var keyboard = hours.Select(hour => KeyboardMinuteBuckets.Where((_, i) => i >= hour * 60 && i < (hour + 1) * 60).Sum());
+            var mouse = hours.Select(hour => MouseMinuteBuckets.Where((_, i) => i >= hour * 60 && i < (hour + 1) * 60).Sum());
+            var keyboardMax = keyboard.Max();
+            var mouseMax = mouse.Max();
+            file.WriteLine("<tr><th>Time of day</th>" + string.Join("", hours.Select(h => "<th>{0}</th>".Fmt(h))) + "</tr>");
+            file.WriteLine("<tr><th>Keyboard</th>" + string.Join("", keyboard.Select(k => "<td title='{0:#,0}'>{1:0}</td>".Fmt(k, k / keyboardMax * 100))) + "</tr>");
+            file.WriteLine("<tr><th>Mouse</th>" + string.Join("", mouse.Select(m => "<td title='{0:#,0}'>{1:0}</td>".Fmt(m, m / mouseMax * 100))) + "</tr>");
+            file.WriteLine("<tr><th>Ratio% K:M</th>" + string.Join("", keyboard.Zip(mouse, (k, m) => "<td>{0:0}</td>".Fmt(k / m * 100))) + "</tr>");
+            file.WriteLine("</table>");
+        }
+
         private void reportKeyUsage(StreamWriter file)
         {
             file.WriteLine("<h1>Key Usage</h1>");
@@ -387,9 +425,17 @@ namespace InputFrequency
         private void reportComboUsage(StreamWriter file)
         {
             file.WriteLine("<h1>Combo Usage</h1>");
-            file.WriteLine("<p class='help'>A combo excludes modifier keys except if nothing else is pressed. Ctrl+Shift+K doesn't count Ctrl or Ctrl+Shift, but Ctrl+Shift alone would be counted.</p>");
-            file.WriteLine("<table>");
+            file.WriteLine("<p class='help'>A combo excludes modifier keys except if nothing else is pressed: Ctrl+Shift+K doesn't count Ctrl or Ctrl+Shift, but Ctrl+Shift alone would be counted.</p>");
             double total = ComboCounts.Sum(kvp => kvp.Value);
+
+            file.WriteLine("<h2>Top 50 combos with modifiers</h2>");
+            file.WriteLine("<table>");
+            foreach (var kvp in ComboCounts.Where(kvp => kvp.Key.AnyAlt || kvp.Key.AnyCtrl || kvp.Key.AnyWin).OrderByDescending(kvp => kvp.Value).Take(50))
+                file.WriteLine("<tr><th>{0}</th><td title='{1:#,0}'>{2:0.0}%</td></tr>".Fmt(kvp.Key, kvp.Value, kvp.Value / total * 100.0));
+            file.WriteLine("</table>");
+
+            file.WriteLine("<h2>All</h2>");
+            file.WriteLine("<table>");
             foreach (var line in ComboCounts.OrderByDescending(kvp => kvp.Value).Select(kvp => "<tr><th>{0}</th><td title='{1:#,0}'>{2:0.0}%</td></tr>".Fmt(kvp.Key, kvp.Value, kvp.Value / total * 100.0)))
                 file.WriteLine(line);
             file.WriteLine("</table>");

@@ -11,6 +11,11 @@ namespace InputFrequency
         public bool LShift, RShift, Shift;
         public Key Key;
 
+        public bool AnyWin { get { return LWin || RWin; } }
+        public bool AnyCtrl { get { return LCtrl || RCtrl || Ctrl; } }
+        public bool AnyAlt { get { return LAlt || RAlt || Alt; } }
+        public bool AnyShift { get { return LShift || RShift || Shift; } }
+
         public KeyCombo(Key key, bool[] keyDown)
         {
             Key = key;
@@ -328,5 +333,6 @@ namespace InputFrequency
         MouseWheelDown = 257,
         MouseWheelLeft = 258,
         MouseWheelRight = 259,
+        NumEnter = 260,
     }
 }

@@ -267,6 +267,7 @@ namespace InputFrequency
                 case Key.NumSubtract:
                 case Key.NumDecimal:
                 case Key.NumDivide:
+                case Key.NumEnter:
                     return true;
                 default:
                     return false;
